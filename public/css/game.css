@@ -1,0 +1,69 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #000;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+}
+
+#game-canvas {
+  display: block;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* Mobile touch controls */
+#touch-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  display: none;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@media (pointer: coarse) {
+  #touch-controls { display: block; }
+}
+
+.touch-btn {
+  position: absolute;
+  pointer-events: all;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: rgba(255,255,255,0.7);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#btn-left  { width: 64px; height: 64px; bottom: 50px; left: 20px; }
+#btn-right { width: 64px; height: 64px; bottom: 50px; left: 96px; }
+#btn-jump  { width: 72px; height: 72px; bottom: 45px; right: 20px; background: rgba(200,168,60,0.2); border-color: rgba(200,168,60,0.5); }
+#btn-attack{ width: 58px; height: 58px; bottom: 55px; right: 104px; background: rgba(230,57,70,0.2); border-color: rgba(230,57,70,0.4); }
+
+/* Back link */
+#back-link {
+  position: fixed;
+  top: 12px;
+  left: 16px;
+  color: rgba(200,168,60,0.6);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  z-index: 20;
+  transition: color 0.2s;
+}
+#back-link:hover { color: rgba(200,168,60,1); }

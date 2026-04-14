@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Edwins Ninjaäventyr</title>
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+
+  <a href="/" id="back-link">← Tillbaka</a>
+
+  <canvas id="game-canvas" style="position:absolute;"></canvas>
+
+  <!-- Score name input overlay -->
+  <form id="name-form" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:50; background:rgba(0,0,0,0.6); flex-direction:column; gap:12px;">
+    <div style="background:#12121f; border:1.5px solid #c8a83c; border-radius:8px; padding:2rem 2.5rem; text-align:center; max-width:340px; width:90%;">
+      <p style="font-family:system-ui; color:#c8a83c; letter-spacing:.15em; margin-bottom:1rem; font-size:.9rem;">ANGE DITT NAMN</p>
+      <input id="name-input" type="text" maxlength="20" placeholder="Ninja-namn…"
+        style="width:100%; padding:.65rem .9rem; background:rgba(255,255,255,.06); border:1px solid rgba(200,168,60,.35); border-radius:4px; color:#f0ede0; font-size:1.1rem; font-family:system-ui; outline:none; margin-bottom:1rem;">
+      <button type="submit"
+        style="width:100%; padding:.75rem; background:#e63946; border:none; border-radius:4px; color:#fff; font-family:system-ui; font-size:.95rem; font-weight:700; letter-spacing:.14em; cursor:pointer;">
+        SKICKA IN
+      </button>
+    </div>
+  </form>
+
+  <!-- Mobile touch controls -->
+  <div id="touch-controls">
+    <button id="btn-left"   class="touch-btn">◀</button>
+    <button id="btn-right"  class="touch-btn">▶</button>
+    <button id="btn-jump"   class="touch-btn">⬆</button>
+    <button id="btn-attack" class="touch-btn">⚔</button>
+  </div>
+
+  <!-- Game scripts — order matters -->
+  <script src="js/game-constants.js"></script>
+  <script src="js/game-audio.js"></script>
+  <script src="js/game-particles.js"></script>
+  <script src="js/game-background.js"></script>
+  <script src="js/game-entities.js"></script>
+  <script src="js/game-hud.js"></script>
+  <script src="js/game-ui.js"></script>
+  <script src="js/game-main.js"></script>
+</body>
+</html>

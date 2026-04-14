@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edwins 8-årskalas!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:   #0a0a0f;
+      --gold:    #c8a83c;
+      --gold2:   #f0d060;
+      --red:     #e63946;
+      --text:    #f0ede0;
+      --muted:   #8a8a9a;
+      --panel:   rgba(255,255,255,0.04);
+      --border:  rgba(200,168,60,0.3);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ========== HERO ========== */
+    .hero {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    #hero-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      padding: 2rem;
+    }
+
+    .hero-eyebrow {
+      font-family: system-ui, sans-serif;
+      font-size: clamp(0.8rem, 2vw, 1rem);
+      letter-spacing: 0.3em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      opacity: 0;
+      animation: fadeInDown 0.8s ease-out 0.2s forwards;
+    }
+
+    .hero-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2.2rem, 8vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(200,168,60,0.5), 0 0 80px rgba(200,168,60,0.2);
+      letter-spacing: 0.05em;
+      opacity: 0;
+      animation: fadeInDown 0.8s ease-out 0.4s forwards;
+    }
+
+    .hero-title span {
+      color: var(--gold2);
+      display: block;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      color: var(--muted);
+      margin-top: 1.2rem;
+      letter-spacing: 0.08em;
+      opacity: 0;
+      animation: fadeInDown 0.8s ease-out 0.6s forwards;
+    }
+
+    .hero-actions {
+      margin-top: 2.5rem;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: fadeInDown 0.8s ease-out 0.8s forwards;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.85rem 2rem;
+      border-radius: 4px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn:hover { transform: scale(1.05); }
+
+    .btn-primary {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(230,57,70,0.4);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 28px rgba(230,57,70,0.6); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--gold);
+      border: 1.5px solid var(--gold);
+      box-shadow: 0 0 12px rgba(200,168,60,0.15);
+    }
+    .btn-secondary:hover { box-shadow: 0 0 24px rgba(200,168,60,0.35); }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      opacity: 0;
+      animation: fadeInDown 1s ease-out 1.4s forwards;
+    }
+
+    .scroll-arrow {
+      width: 20px;
+      height: 20px;
+      border-right: 2px solid var(--gold);
+      border-bottom: 2px solid var(--gold);
+      transform: rotate(45deg);
+      animation: bounce 1.5s infinite;
+    }
+
+    /* ========== SECTIONS ========== */
+    section {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+
+    .section-label {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+    }
+
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      color: var(--text);
+      margin-bottom: 2rem;
+    }
+
+    /* ========== PARTY DETAILS ========== */
+    .details-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      padding: 2rem 2.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem 2rem;
+    }
+
+    .detail-item {}
+    .detail-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.3rem;
+    }
+    .detail-value {
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
+    .dress-code {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--border);
+      padding-top: 1.2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-style: italic;
+    }
+
+    /* ========== RSVP FORM ========== */
+    .rsvp-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      padding: 2.5rem;
+      animation: slideUp 0.5s ease-out 0.3s both;
+    }
+
+    .form-group {
+      margin-bottom: 1.4rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(200,168,60,0.25);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      font-size: 1rem;
+      padding: 0.7rem 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(200,168,60,0.12);
+    }
+
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    textarea { resize: vertical; min-height: 90px; }
+
+    .form-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+      letter-spacing: 0.18em;
+      margin-top: 0.5rem;
+    }
+
+    .form-error {
+      color: var(--red);
+      font-size: 0.85rem;
+      margin-top: 0.8rem;
+      display: none;
+    }
+
+    /* Success state */
+    .rsvp-success {
+      display: none;
+      text-align: center;
+      padding: 2rem 1rem;
+      animation: popIn 0.5s ease-out;
+    }
+
+    .success-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .success-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: var(--gold);
+      margin-bottom: 0.8rem;
+    }
+
+    .success-text {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ========== DIVIDER ========== */
+    .divider {
+      width: 60px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 0 auto 2rem;
+    }
+
+    /* ========== FOOTER ========== */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem 3rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      0%   { transform: scale(0.5); opacity: 0; }
+      70%  { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: rotate(45deg) translateY(0); }
+      50%       { transform: rotate(45deg) translateY(6px); }
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 600px) {
+      .details-card { grid-template-columns: 1fr; }
+      .rsvp-card { padding: 1.5rem; }
+      input, textarea, select { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <canvas id="hero-canvas"></canvas>
+    <div class="hero-content">
+      <p class="hero-eyebrow">Du är inbjuden till</p>
+      <h1 class="hero-title">
+        EDWINS
+        <span>NINJAKALAS</span>
+      </h1>
+      <p class="hero-subtitle">8 fantastiska år · Ninjas, action &amp; kalasgodis</p>
+      <div class="hero-actions">
+        <a href="#osa" class="btn btn-primary">OSA HÄR</a>
+        <a href="game.html" class="btn btn-secondary">SPELA SPELET</a>
+      </div>
+    </div>
+    <div class="scroll-hint">
+      <span>SCROLLA</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </section>
+
+  <!-- PARTY DETAILS -->
+  <section id="detaljer">
+    <p class="section-label">Kalasinformation</p>
+    <h2 class="section-title">Datum &amp; Plats</h2>
+    <div class="divider"></div>
+    <div class="details-card">
+      <div class="detail-item">
+        <div class="detail-label">Datum</div>
+        <div class="detail-value">[DATUM]</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Tid</div>
+        <div class="detail-value">[TID]</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Plats</div>
+        <div class="detail-value">[PLATS]</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">OSA senast</div>
+        <div class="detail-value">[OSA-DATUM]</div>
+      </div>
+      <div class="dress-code">
+        Kom gärna utklädda som ninjor!
+      </div>
+    </div>
+  </section>
+
+  <!-- RSVP -->
+  <section id="osa">
+    <p class="section-label">OSA</p>
+    <h2 class="section-title">Kommer du?</h2>
+    <div class="divider"></div>
+
+    <div class="rsvp-card">
+      <form id="rsvp-form">
+        <div class="form-group">
+          <label for="name">Namn *</label>
+          <input type="text" id="name" name="name" placeholder="Ditt namn" autocomplete="name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="antal_gaster">Antal gäster *</label>
+          <input type="number" id="antal_gaster" name="antal_gaster" value="1" min="1" max="20" required>
+          <p class="form-note">Räkna in alla som kommer (barn + vuxna)</p>
+        </div>
+
+        <div class="form-group">
+          <label for="matallergier">Matallergier eller specialkost</label>
+          <textarea id="matallergier" name="matallergier" placeholder="Lämna blankt om inga allergier"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="halsning">Hälsning till Edwin</label>
+          <textarea id="halsning" name="halsning" placeholder="Skriv något kul till ninjan!"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-submit">SKICKA OSA</button>
+        <p class="form-error" id="form-error"></p>
+      </form>
+
+      <div class="rsvp-success" id="rsvp-success">
+        <div class="success-icon">🥷</div>
+        <h3 class="success-title">Tack!</h3>
+        <p class="success-text">
+          Edwin ser fram emot att träffa dig!<br>
+          Vi ses på kalaset – kom redo att träna som en ninja!
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>&copy; 2026 &nbsp;·&nbsp; Edwins Ninjakalas &nbsp;·&nbsp; Powered by ninjor</p>
+  </footer>
+
+  <script>
+  // =============================================
+  // HERO CANVAS ANIMATION
+  // =============================================
+  (function() {
+    const canvas = document.getElementById('hero-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize() {
+      W = canvas.width  = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Sakura petals
+    const PETAL_COUNT = 18;
+    const petals = [];
+
+    function randomPetal(init) {
+      return {
+        x: init ? Math.random() * W : W + 10,
+        y: init ? Math.random() * H : -10,
+        vx: -(18 + Math.random() * 14),
+        vy: 14 + Math.random() * 18,
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 2.5,
+        size: 3 + Math.random() * 3,
+        alpha: 0.25 + Math.random() * 0.35,
+        wobble: Math.random() * Math.PI * 2
+      };
+    }
+
+    for (let i = 0; i < PETAL_COUNT; i++) petals.push(randomPetal(true));
+
+    // Ninja silhouette data
+    let ninjaX = -80, ninjaAnim = 0;
+    const NINJA_SPEED = 60; // px/sec
+
+    function drawNinja(x, y, frame) {
+      const BLACK = '#111';
+      const RED   = '#c0392b';
+      const legSwing = Math.sin(frame * Math.PI * 2) * 14;
+      const armSwing = Math.sin(frame * Math.PI * 2 + Math.PI) * 10;
+      const sc = 1.8;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(sc, sc);
+
+      // Back leg
+      ctx.fillStyle = BLACK;
+      ctx.save();
+      ctx.translate(-4, 0);
+      ctx.rotate((-legSwing * Math.PI) / 180);
+      ctx.fillRect(-3, 0, 7, 20);
+      ctx.restore();
+      // Front leg
+      ctx.save();
+      ctx.translate(4, 0);
+      ctx.rotate((legSwing * Math.PI) / 180);
+      ctx.fillRect(-3, 0, 7, 20);
+      ctx.restore();
+
+      // Body
+      ctx.fillStyle = BLACK;
+      ctx.fillRect(-11, -28, 22, 28);
+
+      // Back arm
+      ctx.save();
+      ctx.translate(-8, -22);
+      ctx.rotate((-armSwing * Math.PI) / 180);
+      ctx.fillRect(-4, 0, 7, 17);
+      ctx.restore();
+      // Front arm
+      ctx.save();
+      ctx.translate(8, -22);
+      ctx.rotate((armSwing * Math.PI) / 180);
+      ctx.fillRect(-3, 0, 7, 17);
+      ctx.restore();
+
+      // Head
+      ctx.fillStyle = BLACK;
+      ctx.beginPath();
+      ctx.ellipse(0, -40, 11, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes slit
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(2, -44, 8, 3);
+
+      // Headband
+      ctx.fillStyle = RED;
+      ctx.fillRect(-12, -48, 24, 5);
+
+      // Headband tail
+      ctx.fillStyle = RED;
+      ctx.beginPath();
+      ctx.moveTo(10, -43);
+      ctx.lineTo(16, -32 + Math.sin(frame * Math.PI * 4) * 3);
+      ctx.lineTo(12, -32 + Math.sin(frame * Math.PI * 4) * 3);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    let last = 0;
+    function frame(ts) {
+      const dt = Math.min((ts - last) / 1000, 0.05);
+      last = ts;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Background gradient overlay
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0,   'rgba(10,10,15,0.55)');
+      grad.addColorStop(0.5, 'rgba(10,10,15,0.3)');
+      grad.addColorStop(1,   'rgba(10,10,15,0.7)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Update & draw petals
+      for (const p of petals) {
+        p.wobble += dt * 2;
+        p.x += (p.vx + Math.sin(p.wobble) * 12) * dt;
+        p.y += p.vy * dt;
+        p.rot += p.rotSpeed * dt;
+        if (p.y > H + 10 || p.x < -20) {
+          Object.assign(p, randomPetal(false));
+          p.x = W + 10;
+          p.y = -10;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = '#ffb7c5';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size * 1.6, p.size * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+
+      // Move ninja
+      ninjaX += NINJA_SPEED * dt;
+      ninjaAnim += dt;
+      if (ninjaX > W + 100) ninjaX = -80;
+
+      const groundY = H * 0.78;
+      drawNinja(ninjaX, groundY, ninjaAnim);
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+
+  // =============================================
+  // RSVP FORM SUBMISSION
+  // =============================================
+  document.getElementById('rsvp-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById('form-error');
+    errorEl.style.display = 'none';
+
+    const btn = this.querySelector('button[type=submit]');
+    btn.textContent = 'SKICKAR...';
+    btn.disabled = true;
+
+    const body = {
+      name:         document.getElementById('name').value.trim(),
+      antal_gaster: parseInt(document.getElementById('antal_gaster').value, 10),
+      matallergier: document.getElementById('matallergier').value.trim() || null,
+      halsning:     document.getElementById('halsning').value.trim() || null
+    };
+
+    try {
+      const res = await fetch('/api/rsvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Något gick fel, försök igen.';
+        errorEl.style.display = 'block';
+        btn.textContent = 'SKICKA OSA';
+        btn.disabled = false;
+        return;
+      }
+
+      // Show success
+      document.getElementById('rsvp-form').style.display = 'none';
+      const success = document.getElementById('rsvp-success');
+      success.style.display = 'block';
+    } catch (err) {
+      errorEl.textContent = 'Nätverksfel, försök igen.';
+      errorEl.style.display = 'block';
+      btn.textContent = 'SKICKA OSA';
+      btn.disabled = false;
+    }
+  });
+  </script>
+</body>
+</html>
