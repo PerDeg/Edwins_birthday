@@ -61,9 +61,10 @@ const STATE = { MENU:'menu', PLAYING:'playing', GAMEOVER:'gameover',
 let gameState = STATE.MENU;
 let difficulty = 'barn';
 
-let player, platforms, enemies, shurikens, particles, floatingTexts, petals;
-let score, combo, comboTimer, lives, level, kills;
-let screenFlash, nextPlatX, lastLevel;
+let player = null;
+let platforms = [], enemies = [], shurikens = [], particles = [], floatingTexts = [], petals = [];
+let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
+let screenFlash = 0, nextPlatX = 0, lastLevel = 1;
 
 // Camera
 const cam = { x: 0, shake: 0, shakeDur: 0 };
@@ -420,7 +421,7 @@ function draw(dt) {
   for (const s of shurikens) drawShuriken(ctx, s.x, s.y, s.rot);
 
   // Player
-  drawNinjaPlayer(ctx, player);
+  if (player) drawNinjaPlayer(ctx, player);
 
   // Floating texts (world-space)
   for (const t of floatingTexts) t.draw(ctx, cam.x);
