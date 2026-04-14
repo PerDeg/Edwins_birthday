@@ -21,6 +21,8 @@ services:
     ports:
       - "3001:3000"
     env_file: .env
+    volumes:
+      - ./public/assets:/app/public/assets:ro
     depends_on:
       db:
         condition: service_healthy
