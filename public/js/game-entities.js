@@ -22,6 +22,34 @@ function drawNinjaPlayer(ctx, p) {
   const { x, y, w, h, facing, animFrame, state, invincible } = p;
   if (invincible > 0 && Math.floor(invincible * 10) % 2 === 0) return; // blink
 
+  // ── Sprite path ──────────────────────────────────────────────────────────
+  if (typeof Sprites !== 'undefined') {
+    const FRAME_W = 32, FRAME_H = 32;
+    const DW = w * 2.8, DH = h * 1.85; // render larger than hitbox
+    const dx = x - (DW - w) / 2;
+    const dy = y - (DH - h) * 0.55;
+
+    let spriteName, frame;
+    if (state === 'attack') {
+      spriteName = 'ninja-attack';
+      frame = Math.floor((1 - p.attackTimer / C.ATTACK_DURATION) * 3);
+    } else if (!p.onGround && p.vy < 0) {
+      spriteName = 'ninja-jump'; frame = 0;
+    } else if (!p.onGround) {
+      spriteName = 'ninja-fall'; frame = 0;
+    } else if (state === 'run') {
+      spriteName = 'ninja-run';
+      frame = Math.floor(p.animFrame * 1.5) % 12;
+    } else {
+      spriteName = 'ninja-idle';
+      frame = Math.floor(p.animFrame * 0.6) % 11;
+    }
+
+    if (Sprites.draw(ctx, spriteName, frame, FRAME_W, FRAME_H,
+                     dx, dy, DW, DH, facing < 0)) return;
+  }
+  // ── Fallback: programmatic drawing ───────────────────────────────────────
+
   ctx.save();
   ctx.translate(x + w / 2, y);
   if (facing < 0) ctx.scale(-1, 1);
@@ -93,6 +121,14 @@ function drawNinjaPlayer(ctx, p) {
 
 function drawGrunt(ctx, e) {
   const { x, y, w, h, facing, animFrame } = e;
+
+  if (typeof Sprites !== 'undefined') {
+    const DW = w * 2.8, DH = h * 1.85;
+    const dx = x - (DW - w) / 2, dy = y - (DH - h) * 0.55;
+    const frame = Math.floor(animFrame * 1.2) % 8;
+    if (Sprites.draw(ctx, 'grunt-run', frame, 32, 32, dx, dy, DW, DH, facing < 0)) return;
+  }
+
   const legSwing = Math.sin(animFrame * Math.PI * 2.2) * 12;
 
   ctx.save();
@@ -133,6 +169,13 @@ function drawGrunt(ctx, e) {
 
 function drawArcher(ctx, e) {
   const { x, y, w, h, facing } = e;
+
+  if (typeof Sprites !== 'undefined') {
+    const DW = w * 2.8, DH = h * 1.85;
+    const dx = x - (DW - w) / 2, dy = y - (DH - h) * 0.55;
+    if (Sprites.draw(ctx, 'archer-idle', 0, 32, 32, dx, dy, DW, DH, facing < 0)) return;
+  }
+
   ctx.save();
   ctx.translate(x + w / 2, y);
   if (facing < 0) ctx.scale(-1, 1);

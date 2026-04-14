@@ -100,13 +100,15 @@ function initGame(diff) {
   level      = 1;
   kills      = 0;
   screenFlash= 0;
-  nextPlatX  = 400;
+  nextPlatX  = 280;
   lastLevel  = 1;
 
   cam.x = 0; cam.shake = 0; cam.shakeDur = 0;
 
-  // Ground platform (virtual, never removed)
-  // Real platforms start ahead
+  // Guaranteed first platform right in view so player has somewhere to jump
+  platforms.push({ x: 120, y: 370, w: 220, h: 14 });
+
+  // Procedural platforms from nextPlatX onward
   spawnStartPlatforms();
 
   gameState = STATE.PLAYING;
@@ -354,6 +356,34 @@ function update(dt) {
   screenFlash = Math.max(0, screenFlash - dt * 3.5);
 }
 
+// ── Platform drawing ──────────────────────────────────────────────────────────
+function drawPlatform(ctx, p) {
+  const TILE = 16; // terrain tile size in source image
+  // Try sprite tiles (terrain.png row 0 = grass top, row 1 = dirt fill)
+  if (typeof Sprites !== 'undefined' && Sprites.has('terrain')) {
+    const cols = Math.ceil(p.w / p.h);
+    const tw = p.w / cols;
+    for (let i = 0; i < cols; i++) {
+      const tx = i === 0 ? 0 : (i === cols - 1 ? 2 : 1); // left / mid / right tile col
+      Sprites.drawTile(ctx, tx, 0, TILE, p.x + i * tw, p.y, tw + 1, p.h);
+    }
+    return;
+  }
+  // Fallback: styled gradient platform
+  const grad = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+  grad.addColorStop(0,   '#5a7a2a');
+  grad.addColorStop(0.3, '#3a5a1a');
+  grad.addColorStop(1,   '#2a3a14');
+  ctx.fillStyle = grad;
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  // Bright top edge
+  ctx.fillStyle = '#8aba3a';
+  ctx.fillRect(p.x, p.y, p.w, 3);
+  // Subtle shadow bottom
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
+}
+
 // ── DRAW ──────────────────────────────────────────────────────────────────────
 function draw(dt) {
   ctx.clearRect(0, 0, C.W, C.H);
@@ -371,15 +401,10 @@ function draw(dt) {
   Background.drawGround(ctx, cam.x);
 
   // Platforms
-  ctx.fillStyle = '#2a2418';
-  ctx.strokeStyle = C.COL_GOLD;
-  ctx.lineWidth = 2;
   for (const p of platforms) {
     if (p.x + p.w < cam.x - 20 || p.x > cam.x + C.W + 20) continue;
-    ctx.fillRect(p.x, p.y, p.w, p.h);
-    ctx.strokeRect(p.x, p.y, p.w, 2);
+    drawPlatform(ctx, p);
   }
-  ctx.lineWidth = 1;
 
   // Particles (world-space)
   for (const p of particles) p.draw(ctx);
@@ -420,7 +445,12 @@ function draw(dt) {
 
 // ── Click / tap handler ───────────────────────────────────────────────────────
 let lastClickHandled = false;
-canvas.addEventListener('click', handleClick);
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - r.left) / scale;
+  mouse.y = (e.clientY - r.top)  / scale;
+  handleClick();
+});
 canvas.addEventListener('touchend', e => {
   const t = e.changedTouches[0];
   const r = canvas.getBoundingClientRect();
@@ -503,4 +533,8 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(loop); });
+// Preload sprites then start — game works fine even if sprites fail to load
+(typeof Sprites !== 'undefined' ? Sprites.load() : Promise.resolve())
+  .finally(() => {
+    requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(loop); });
+  });
