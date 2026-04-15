@@ -23,7 +23,7 @@ async function initDb() {
           id         SERIAL PRIMARY KEY,
           name       TEXT NOT NULL,
           score      INTEGER NOT NULL,
-          difficulty TEXT NOT NULL CHECK (difficulty IN ('barn', 'vuxen')),
+          difficulty TEXT NOT NULL DEFAULT 'ninja',
           level      INTEGER NOT NULL DEFAULT 1,
           kills      INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

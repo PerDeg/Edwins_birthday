@@ -18,6 +18,7 @@ function resize() {
   canvas.width  = Math.round(cw * dpr);
   canvas.height = Math.round(ch * dpr);
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;   // pixel-perfect sprites
 }
 window.addEventListener('resize', resize);
 resize();
@@ -64,8 +65,7 @@ const STATE = {
   LEVEL_COMPLETE: 'level_complete',
   VICTORY:        'victory',
 };
-let gameState  = STATE.MENU;
-let difficulty = 'barn';
+let gameState = STATE.MENU;
 
 // ── Entity arrays ──────────────────────────────────────────────────────────────
 let player        = null;
@@ -78,6 +78,8 @@ let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
 let screenFlash      = 0;
 let playerWeapon     = 'sword';   // 'sword'|'shuriken'|'triple'|'knife'
 let throwCooldown    = 0;
+let gemPower         = false;
+let gemGlowTimer     = 0;
 let currentLevelIdx  = 0;
 let bgTheme          = 0;
 let levelWidth       = C.LEVEL_DATA[0].width;
@@ -96,6 +98,7 @@ const _submitHeading  = document.getElementById('submit-heading');
 const _submitScore    = document.getElementById('submit-score');
 const _submitRankEl   = document.getElementById('submit-rank');
 const _rankNum        = document.getElementById('rank-num');
+const _menuOverlay    = document.getElementById('menu-overlay');
 
 function _showOverlay() {
   if (!_submitOverlay) return;
@@ -113,31 +116,33 @@ function _hideOverlay() {
   if (_submitOverlay) _submitOverlay.style.display = 'none';
 }
 
+function _showMenu() {
+  gameState = STATE.MENU;
+  if (_menuOverlay) _menuOverlay.style.display = 'flex';
+  fetchLeaderboard();
+}
+
+function _hideMenu() {
+  if (_menuOverlay) _menuOverlay.style.display = 'none';
+}
+
 // ── Loop timestamp ─────────────────────────────────────────────────────────────
 let lastTime = 0;
 
-// ── Canvas UI click handler (menu + level-complete only) ──────────────────────
+// ── Canvas UI click handler (in-game screens only) ────────────────────────────
 function handleClick() {
   const b = {
-    barn:      { x: C.W * 0.5 - 100, y: C.H * 0.5 + 42, w: 160, h: 46 },
-    vuxen:     { x: C.W * 0.5 + 100, y: C.H * 0.5 + 42, w: 160, h: 46 },
-    levelNext: { x: C.W * 0.5,       y: C.H * 0.5 + 80, w: 240, h: 50 },
-    boardBack: { x: C.W * 0.5,       y: C.H * 0.5 + 200, w: 180, h: 42 },
+    levelNext: { x: C.W * 0.5, y: C.H * 0.5 + 80,  w: 240, h: 50 },
+    boardBack: { x: C.W * 0.5, y: C.H * 0.5 + 200, w: 180, h: 42 },
   };
 
   for (const [key, box] of Object.entries(b)) {
     const hit = mouse.x >= box.x - box.w/2 && mouse.x <= box.x + box.w/2 &&
                 mouse.y >= box.y - box.h/2 && mouse.y <= box.y + box.h/2;
     if (!hit) continue;
-
-    if (key === 'barn' && gameState === STATE.MENU) {
-      difficulty = 'barn'; _resetSubmitFlags(); initGame(difficulty);
-    } else if (key === 'vuxen' && gameState === STATE.MENU) {
-      difficulty = 'vuxen'; _resetSubmitFlags(); initGame(difficulty);
-    } else if (key === 'levelNext' && gameState === STATE.LEVEL_COMPLETE) {
-      advanceNextLevel();
-    } else if (key === 'boardBack' && gameState === STATE.LEADERBOARD) {
-      _resetSubmitFlags(); gameState = STATE.MENU;
+    if (key === 'levelNext' && gameState === STATE.LEVEL_COMPLETE) advanceNextLevel();
+    else if (key === 'boardBack' && gameState === STATE.LEADERBOARD) {
+      _resetSubmitFlags(); _showMenu();
     }
   }
 }
@@ -153,7 +158,7 @@ function finishSubmit(name) {
   const n = (name || '').trim();
   if (!n) return;
   submitName = n;
-  const payload = { name: n, score, difficulty, level, kills };
+  const payload = { name: n, score, level, kills };
   fetch('/api/scores', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -205,7 +210,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-// ── Startup: canvas click ─────────────────────────────────────────────────────
+// ── Canvas click / touch — in-game screens ────────────────────────────────────
 canvas.addEventListener('click', e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / scale;
@@ -213,38 +218,53 @@ canvas.addEventListener('click', e => {
   handleClick();
 });
 canvas.addEventListener('touchend', e => {
-  if (e.touches.length === 0) {
-    const t = e.changedTouches[0], r = canvas.getBoundingClientRect();
-    mouse.x = (t.clientX - r.left) / scale;
-    mouse.y = (t.clientY - r.top)  / scale;
-    handleClick();
-  }
+  const t = e.changedTouches[0];
+  if (!t) return;
+  const r = canvas.getBoundingClientRect();
+  mouse.x = (t.clientX - r.left) / scale;
+  mouse.y = (t.clientY - r.top)  / scale;
+  handleClick();
 });
 
 // ── HTML overlay buttons ──────────────────────────────────────────────────────
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
   _hideOverlay();
   _resetSubmitFlags();
-  gameState = STATE.MENU;
+  _showMenu();
 });
 
+// "Avsluta" — submit score then return to menu (menu now shows high scores)
 document.getElementById('btn-quit')?.addEventListener('click', () => {
   const n = _nameInput ? _nameInput.value : '';
   finishSubmit(n);
-  fetchLeaderboard();
   _hideOverlay();
-  gameState = STATE.LEADERBOARD;
+  _resetSubmitFlags();
+  _showMenu();
 });
 
 document.getElementById('btn-view-scores')?.addEventListener('click', e => {
   e.preventDefault();
   const n = _nameInput ? _nameInput.value : '';
   finishSubmit(n);
-  fetchLeaderboard();
   _hideOverlay();
-  gameState = STATE.LEADERBOARD;
+  _resetSubmitFlags();
+  _showMenu();
 });
 
-// Preload sprites and start loop
+// ── Menu overlay start button ─────────────────────────────────────────────────
+document.getElementById('btn-start-game')?.addEventListener('click', () => {
+  _hideMenu();
+  _resetSubmitFlags();
+  initGame();
+});
+document.getElementById('btn-start-game')?.addEventListener('touchend', e => {
+  e.preventDefault();
+  _hideMenu();
+  _resetSubmitFlags();
+  initGame();
+}, { passive: false });
+
+// ── Startup ───────────────────────────────────────────────────────────────────
+_showMenu();   // show menu overlay immediately
 Promise.resolve(typeof Sprites !== 'undefined' && Sprites.load ? Sprites.load() : undefined)
   .finally(() => { requestAnimationFrame(loop); });

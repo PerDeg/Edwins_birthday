@@ -2,12 +2,11 @@
 
 // ── Level management ───────────────────────────────────────────────────────────
 
-function initGame(diff) {
-  difficulty   = diff;
+function initGame() {
   Audio.start();
   HUD.reset();
 
-  player        = new Player(difficulty);
+  player        = new Player();
   particles     = [];
   floatingTexts = [];
   petals        = Array.from({ length: 25 }, () => new SakuraPetal());
@@ -15,10 +14,11 @@ function initGame(diff) {
   score         = 0;
   combo         = 1;
   comboTimer    = 0;
-  lives         = C.DIFF[difficulty].lives;
+  lives         = C.LIVES;
   kills         = 0;
   screenFlash   = 0;
   playerWeapon  = 'sword';
+  gemPower      = false;
   throwCooldown = 0;
 
   loadLevel(0);
@@ -40,20 +40,19 @@ function loadLevel(idx) {
   playerShurikens = [];
   shurikens       = [];
 
-  const diff      = C.DIFF[difficulty];
   const speedBase = ld.enemySpeedBase;
-  const shootInt  = ld.archerInterval * diff.shootMul;
+  const shootInt  = ld.archerInterval * C.SHOOT_MUL;
 
   ld.enemies.forEach(e => {
     const plat = platforms[e.platIdx];
     if (!plat) return;
     const ex = plat.x + plat.w * 0.35;
     if (e.type === 'grunt') {
-      const g = new Grunt(ex, plat, diff.speedMul);
-      g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * diff.speedMul;
+      const g = new Grunt(ex, plat, C.ENEMY_SPEED_MUL);
+      g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
       enemies.push(g);
     } else {
-      enemies.push(new Archer(ex, plat, diff.speedMul, shootInt));
+      enemies.push(new Archer(ex, plat, C.ENEMY_SPEED_MUL, shootInt));
     }
   });
 

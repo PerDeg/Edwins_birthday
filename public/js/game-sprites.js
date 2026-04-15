@@ -85,6 +85,8 @@ const Sprites = (() => {
     const imgJobs = [
       _load('weapon-shuriken', base + 'weapon/Shuriken.png'),
       _load('weapon-kunai',    base + 'weapon/Kunai.png'),
+      _load('heart',           base + 'other/heart.png'),
+      _load('gem',             base + 'other/gem.png'),
       _load('terrain',         base + 'terrain.png'),
       _load('bg-level1',       base + 'bg-level1.png'),
       _load('bg-level2',       base + 'bg-level2.png'),

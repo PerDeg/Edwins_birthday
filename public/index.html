@@ -497,76 +497,37 @@
 
     for (let i = 0; i < PETAL_COUNT; i++) petals.push(randomPetal(true));
 
-    // Ninja silhouette data
-    let ninjaX = -80, ninjaAnim = 0;
-    const NINJA_SPEED = 60; // px/sec
+    // ── Ninja sprite sequences ────────────────────────────────────────────────
+    const RUN_COUNT  = 10;
+    const runFrames  = new Array(RUN_COUNT).fill(null);
+    for (let i = 0; i < RUN_COUNT; i++) {
+      const img = new Image();
+      img.src = `assets/ninja/02-Run/MN_NINJA_Run_${String(i).padStart(3,'0')}.png`;
+      img.onload = () => { runFrames[i] = img; };
+    }
 
-    function drawNinja(x, y, frame) {
-      const BLACK = '#111';
-      const RED   = '#c0392b';
-      const legSwing = Math.sin(frame * Math.PI * 2) * 14;
-      const armSwing = Math.sin(frame * Math.PI * 2 + Math.PI) * 10;
-      const sc = 1.8;
+    let ninjaX = -120, ninjaAnimTimer = 0, ninjaSpriteFrame = 0;
+    const NINJA_SPEED = 90;
+    const NINJA_SIZE  = 120;
+    const FRAME_RATE  = 0.09;
 
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(sc, sc);
-
-      // Back leg
-      ctx.fillStyle = BLACK;
-      ctx.save();
-      ctx.translate(-4, 0);
-      ctx.rotate((-legSwing * Math.PI) / 180);
-      ctx.fillRect(-3, 0, 7, 20);
-      ctx.restore();
-      // Front leg
-      ctx.save();
-      ctx.translate(4, 0);
-      ctx.rotate((legSwing * Math.PI) / 180);
-      ctx.fillRect(-3, 0, 7, 20);
-      ctx.restore();
-
-      // Body
-      ctx.fillStyle = BLACK;
-      ctx.fillRect(-11, -28, 22, 28);
-
-      // Back arm
-      ctx.save();
-      ctx.translate(-8, -22);
-      ctx.rotate((-armSwing * Math.PI) / 180);
-      ctx.fillRect(-4, 0, 7, 17);
-      ctx.restore();
-      // Front arm
-      ctx.save();
-      ctx.translate(8, -22);
-      ctx.rotate((armSwing * Math.PI) / 180);
-      ctx.fillRect(-3, 0, 7, 17);
-      ctx.restore();
-
-      // Head
-      ctx.fillStyle = BLACK;
-      ctx.beginPath();
-      ctx.ellipse(0, -40, 11, 13, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eyes slit
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillRect(2, -44, 8, 3);
-
-      // Headband
-      ctx.fillStyle = RED;
-      ctx.fillRect(-12, -48, 24, 5);
-
-      // Headband tail
-      ctx.fillStyle = RED;
-      ctx.beginPath();
-      ctx.moveTo(10, -43);
-      ctx.lineTo(16, -32 + Math.sin(frame * Math.PI * 4) * 3);
-      ctx.lineTo(12, -32 + Math.sin(frame * Math.PI * 4) * 3);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
+    function drawNinja(x, y) {
+      const img = runFrames[ninjaSpriteFrame % RUN_COUNT];
+      if (img) {
+        // Sprites face left — flip to face right
+        ctx.save();
+        ctx.translate(x + NINJA_SIZE, y);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, NINJA_SIZE, NINJA_SIZE);
+        ctx.restore();
+      } else {
+        // Minimal fallback while sprites load
+        ctx.save(); ctx.translate(x + NINJA_SIZE / 2, y + NINJA_SIZE * 0.6);
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.ellipse(0, -NINJA_SIZE*0.3, NINJA_SIZE*0.2, NINJA_SIZE*0.28, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-NINJA_SIZE*0.18, -NINJA_SIZE*0.08, NINJA_SIZE*0.36, NINJA_SIZE*0.32);
+        ctx.restore();
+      }
     }
 
     let last = 0;
@@ -610,11 +571,12 @@
 
       // Move ninja
       ninjaX += NINJA_SPEED * dt;
-      ninjaAnim += dt;
-      if (ninjaX > W + 100) ninjaX = -80;
+      ninjaAnimTimer += dt;
+      if (ninjaAnimTimer >= FRAME_RATE) { ninjaSpriteFrame++; ninjaAnimTimer = 0; }
+      if (ninjaX > W + NINJA_SIZE) ninjaX = -NINJA_SIZE;
 
-      const groundY = H * 0.78;
-      drawNinja(ninjaX, groundY, ninjaAnim);
+      const groundY = H * 0.78 - NINJA_SIZE;
+      drawNinja(ninjaX, groundY);
 
       requestAnimationFrame(frame);
     }

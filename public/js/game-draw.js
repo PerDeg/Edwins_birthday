@@ -29,7 +29,7 @@ function draw(dt) {
   ctx.clearRect(0, 0, C.W, C.H);
 
   if (gameState === STATE.MENU) {
-    UI.drawMenu(ctx, dt, mouse);
+    UI.drawMenu(ctx, dt, leaderboard);
     return;
   }
 
@@ -65,7 +65,22 @@ function draw(dt) {
   for (const s of playerShurikens) s.draw(ctx);
 
   if (boss && boss.alive) drawBoss(ctx, boss);
-  if (player) drawNinjaPlayer(ctx, player);
+  if (player) {
+    // Gem power: draw cyan glow halo around player
+    if (gemPower) {
+      const pulse = 0.55 + Math.sin(Date.now() * 0.006) * 0.45;
+      ctx.save();
+      ctx.globalAlpha = pulse * 0.55;
+      ctx.fillStyle = '#a0f0ff';
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.w/2, player.y + player.h/2,
+                  player.w * 1.5, player.h * 1.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+    drawNinjaPlayer(ctx, player);
+  }
 
   for (const t of floatingTexts) t.draw(ctx);
 
@@ -74,7 +89,7 @@ function draw(dt) {
   for (const p of petals) p.draw(ctx);
 
   if (gameState === STATE.PLAYING) {
-    HUD.draw(ctx, { lives, score, level, combo, difficulty, boss, playerWeapon, camX: cam.x, levelWidth });
+    HUD.draw(ctx, { lives, score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth });
   } else if (gameState === STATE.LEVEL_COMPLETE) {
     UI.drawLevelComplete(ctx, dt, C.LEVEL_DATA[currentLevelIdx].name, level, currentLevelIdx >= C.LEVEL_DATA.length - 1);
   } else if (gameState === STATE.GAMEOVER) {

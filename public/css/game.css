@@ -163,6 +163,42 @@ body {
 }
 #btn-view-scores:hover { color: #c8a83c; }
 
+/* ── Menu overlay ───────────────────────────────────────────────────────────── */
+#menu-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 40;
+  padding-bottom: 14vh;
+  pointer-events: none;   /* let canvas receive mouse events for hover effects */
+}
+
+#btn-start-game {
+  pointer-events: all;
+  padding: 1rem 2.6rem;
+  background: rgba(200,168,60,0.14);
+  border: 2px solid #c8a83c;
+  border-radius: 6px;
+  color: #c8a83c;
+  font-family: system-ui, sans-serif;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  text-shadow: 0 0 12px rgba(200,168,60,0.5);
+  box-shadow: 0 0 22px rgba(200,168,60,0.18);
+  transition: background 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+#btn-start-game:hover,
+#btn-start-game:active {
+  background: rgba(200,168,60,0.30);
+  box-shadow: 0 0 36px rgba(200,168,60,0.35);
+}
+
 /* Back link */
 #back-link {
   position: fixed;

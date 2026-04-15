@@ -56,15 +56,24 @@ function updatePlayer(dt) {
 
   const attackPressed = keyJustPressed('KeyZ') || keyJustPressed('ControlLeft') || keyJustPressed('ControlRight');
   if (attackPressed && p.attackCooldown <= 0) {
-    p.attacking = true; p.attackTimer = C.ATTACK_DURATION; p.attackCooldown = 0.35;
-    emitSwordSlash(particles, p.x + (p.facing > 0 ? p.w + 10 : -10), p.y + p.h * 0.35, p.facing);
-    Audio.slash();
+    if (gemPower) {
+      // Gem special: radial shockwave damages all visible enemies
+      triggerGemSpecial();
+    } else {
+      p.attacking = true; p.attackTimer = C.ATTACK_DURATION; p.attackCooldown = 0.35;
+      emitSwordSlash(particles, p.x + (p.facing > 0 ? p.w + 10 : -10), p.y + p.h * 0.35, p.facing);
+      Audio.slash();
+    }
   }
 
   const throwPressed = keyJustPressed('KeyX') || keyJustPressed('ShiftLeft') || keyJustPressed('ShiftRight');
   if (throwPressed && throwCooldown <= 0 && playerWeapon !== 'sword') {
-    throwWeapon();
-    throwCooldown = C.THROW_COOLDOWN;
+    // Guard: only throw if projectile starts within visible screen
+    const throwX = p.x + p.w / 2 + p.facing * 18;
+    if (throwX > cam.x + 20 && throwX < cam.x + C.W - 20) {
+      throwWeapon();
+      throwCooldown = C.THROW_COOLDOWN;
+    }
   }
 
   if (p.attackTimer > 0)    { p.attackTimer    -= dt; if (p.attackTimer  <= 0) p.attacking = false; }
@@ -76,6 +85,9 @@ function updatePlayer(dt) {
   p.vy += C.GRAVITY * dt;
   p.x  += p.vx * dt;
   p.y  += p.vy * dt;
+
+  // No backtracking: player cannot move left of camera left edge
+  if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
 
   platformCollision(p);
 
@@ -108,6 +120,33 @@ function throwWeapon() {
     playerShurikens.push(new PlayerShuriken(cx, cy, player.facing, playerWeapon === 'knife' ? 'knife' : 'shuriken'));
   }
   Audio.slash();
+}
+
+// ── Gem special attack ─────────────────────────────────────────────────────────
+function triggerGemSpecial() {
+  gemPower = false;
+  gemGlowTimer = 0;
+  screenFlash = 0.6;
+  triggerShake(8, 0.3);
+  Audio.levelUp();
+  // Deal 2 hits to every visible enemy
+  const visL = cam.x - 40, visR = cam.x + C.W + 40;
+  for (const e of enemies) {
+    if (!e.alive || e.x + e.w < visL || e.x > visR) continue;
+    if (e.type === 'archer') {
+      e.hits += 2;
+      if (e.hits >= 2) killEnemy(e);
+      else emitHit(particles, e.x + e.w/2, e.y + e.h/2);
+    } else {
+      killEnemy(e);
+    }
+    emitEnemyDeath(particles, e.x + e.w/2, e.y + e.h/2);
+  }
+  if (boss && boss.alive && boss.x + boss.w > visL && boss.x < visR) {
+    boss.takeDamage(); boss.takeDamage();
+    emitHit(particles, boss.x + boss.w/2, boss.y + boss.h/2);
+    if (boss.hp <= 0) killBoss();
+  }
 }
 
 // ── Enemies ────────────────────────────────────────────────────────────────────
@@ -146,7 +185,7 @@ function killEnemy(e) {
 // ── Boss ────────────────────────────────────────────────────────────────────────
 function updateBoss(dt) {
   if (!boss || !boss.alive) return;
-  boss.update(dt, player, shurikens);
+  boss.update(dt, player, shurikens, playerShurikens);
 
   if (player.invincible <= 0 && rectsOverlap(player.bounds(), boss.bounds())) damagePlayer();
 
@@ -235,13 +274,30 @@ function updatePickups(dt) {
   const labels = { shuriken: 'KASTSTJÄRNA!', triple: '3× STJÄRNA!', knife: 'KNIV!' };
   for (const p of pickups) {
     if (!p.alive) continue;
+    // Mark heart as gem-version when player is at full life (for draw)
+    if (p.type === 'heart') p.isGem = (lives >= C.LIVES);
     p.update(dt);
     if (rectsOverlap(player.bounds(), p.bounds())) {
       p.alive = false;
-      playerWeapon = p.type;
-      floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10,  labels[p.type] || p.type, '#4fc3f7', 1.2));
-      floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, 'TRYCK X FÖR ATT KASTA', 'rgba(255,255,255,0.75)', 0.78));
-      Audio.djump();
+      if (p.type === 'heart') {
+        if (lives < C.LIVES) {
+          lives++;
+          floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, '+1 LIV!', '#e63946', 1.3));
+          Audio.levelUp();
+        } else {
+          // Full health — grant gem power
+          gemPower = true;
+          gemGlowTimer = 8.0;   // 8 seconds of glow
+          floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, 'GEM-KRAFT!', '#a0f0ff', 1.4));
+          floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 32, 'TRYCK Z FÖR ATTACK!', 'rgba(160,240,255,0.85)', 0.85));
+          Audio.levelUp();
+        }
+      } else {
+        playerWeapon = p.type;
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, labels[p.type] || p.type, '#4fc3f7', 1.2));
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, 'TRYCK X FÖR ATT KASTA', 'rgba(255,255,255,0.75)', 0.78));
+        Audio.djump();
+      }
     }
   }
 }
@@ -249,6 +305,14 @@ function updatePickups(dt) {
 // ── Combo ──────────────────────────────────────────────────────────────────────
 function updateCombo(dt) {
   if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) combo = 1; }
+}
+
+// ── Gem glow timer ─────────────────────────────────────────────────────────────
+function updateGem(dt) {
+  if (gemGlowTimer > 0) {
+    gemGlowTimer -= dt;
+    if (gemGlowTimer <= 0) { gemPower = false; gemGlowTimer = 0; }
+  }
 }
 
 // ── Main update ────────────────────────────────────────────────────────────────
@@ -273,12 +337,14 @@ function update(dt) {
   updatePickups(dt);
   updateCamera(dt);
   updateCombo(dt);
+  updateGem(dt);
 
   for (const p of particles)     p.update(dt);
   for (const t of floatingTexts) t.update(dt);
   for (const p of petals)        p.update(dt);
 
   particles     = particles.filter(p => p.alive);
+  if (particles.length > 220) particles = particles.slice(-220);   // hard cap
   floatingTexts = floatingTexts.filter(t => t.alive);
   screenFlash   = Math.max(0, screenFlash - dt * 3.5);
 }

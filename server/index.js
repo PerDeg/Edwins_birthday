@@ -74,18 +74,13 @@ app.post('/api/scores', async (req, res) => {
   const score = parseInt(req.body.score, 10);
   if (isNaN(score) || score < 0) return res.status(400).json({ error: 'Ogiltigt poäng.' });
 
-  const difficulty = req.body.difficulty;
-  if (!['barn', 'vuxen'].includes(difficulty)) {
-    return res.status(400).json({ error: 'Ogiltigt svårighetsgrad.' });
-  }
-
   const level = Math.max(1, parseInt(req.body.level, 10) || 1);
   const kills = Math.max(0, parseInt(req.body.kills, 10) || 0);
 
   try {
     await pool.query(
       'INSERT INTO scores (name, score, difficulty, level, kills) VALUES ($1, $2, $3, $4, $5)',
-      [name, score, difficulty, level, kills]
+      [name, score, 'ninja', level, kills]
     );
     const rankResult = await pool.query(
       'SELECT COUNT(*) FROM scores WHERE score >= $1',

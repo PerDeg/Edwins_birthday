@@ -3,7 +3,47 @@
 // ── Background generator ─────────────────────────────────────────────────────
 const Background = (() => {
   let _theme = 0;
-  function setTheme(t) { _theme = t; }
+  // Offscreen canvas for static sky — rebuilt only when theme changes
+  let _skyCanvas = null, _skyTheme = -1;
+
+  function _rebuildSky() {
+    if (!_skyCanvas) {
+      _skyCanvas = document.createElement('canvas');
+      _skyCanvas.width = C.W; _skyCanvas.height = C.H;
+    }
+    const sc = _skyCanvas.getContext('2d');
+    sc.clearRect(0, 0, C.W, C.H);
+    // Duplicate sky-drawing logic onto offscreen canvas
+    const t = _theme;
+    let g;
+    if (t === 1) {
+      g = sc.createLinearGradient(0, 0, 0, C.H);
+      g.addColorStop(0, '#0a0a1e'); g.addColorStop(0.6, '#1a1a3a'); g.addColorStop(1, '#2a1a1a');
+    } else if (t === 2) {
+      g = sc.createLinearGradient(0, 0, 0, C.H);
+      g.addColorStop(0, '#1a0505'); g.addColorStop(0.5, '#3a0a0a'); g.addColorStop(1, '#1a0808');
+    } else {
+      g = sc.createLinearGradient(0, 0, 0, C.H);
+      g.addColorStop(0, '#05051a'); g.addColorStop(0.5, '#0d0d28'); g.addColorStop(1, '#0a1020');
+    }
+    sc.fillStyle = g; sc.fillRect(0, 0, C.W, C.H);
+    // Moon
+    sc.fillStyle = t === 2 ? '#ff6020' : (t === 1 ? '#e0e8ff' : '#f0f0e8');
+    sc.beginPath(); sc.arc(C.W * 0.82, C.H * 0.14, 28, 0, Math.PI * 2); sc.fill();
+    sc.fillStyle = t === 2 ? '#3a0a0a' : (t === 1 ? '#0a0a1e' : '#05051a');
+    sc.beginPath(); sc.arc(C.W * 0.82 + 8, C.H * 0.14 - 6, 22, 0, Math.PI * 2); sc.fill();
+    // Stars
+    sc.fillStyle = 'rgba(255,255,255,0.65)';
+    const seed = [0.12,0.34,0.56,0.78,0.23,0.45,0.67,0.89,0.11,0.33,0.55,0.77,0.19,0.41,0.63,0.85];
+    for (let i = 0; i < 16; i++) {
+      sc.beginPath();
+      sc.arc(seed[i]*C.W, seed[(i+3)%16]*C.H*0.55, seed[(i+7)%16]*1.2+0.4, 0, Math.PI*2);
+      sc.fill();
+    }
+    _skyTheme = t;
+  }
+
+  function setTheme(t) { _theme = t; _skyTheme = -1; }   // invalidate cache
 
   const WORLD_W = 30000;
 
@@ -330,14 +370,15 @@ const Background = (() => {
     }
   }
 
-  // Unified call: uses bg image + ground when available, else full programmatic.
+  // Unified call: uses bg image + ground when available, else programmatic with cached sky.
   function drawBackground(ctx, camX) {
     const bgName = `bg-level${_theme + 1}`;
     if (typeof Sprites !== 'undefined' && Sprites.has(bgName)) {
       Sprites.drawBg(ctx, bgName, camX);
-      // Skip mountains/silhouettes — they're in the image
     } else {
-      drawSky(ctx);
+      // Blit cached sky (avoid rebuilding gradient every frame)
+      if (_skyTheme !== _theme) _rebuildSky();
+      ctx.drawImage(_skyCanvas, 0, 0);
       drawMountains(ctx, camX);
       drawSilhouettes(ctx, camX);
     }

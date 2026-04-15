@@ -24,29 +24,48 @@ const UI = (() => {
 
   // ── MENU ──────────────────────────────────────────────────────────────────
   let menuAnim = 0;
-  function drawMenu(ctx, dt, mouse) {
+  function drawMenu(ctx, dt, rows) {
     menuAnim += dt;
-    overlay(ctx, 0.78);
-    ctx.font = 'bold 52px system-ui'; ctx.textAlign = 'center';
+    overlay(ctx, 0.80);
+
+    // Title
+    ctx.textAlign = 'center';
     ctx.shadowColor = C.COL_GOLD; ctx.shadowBlur = 18 + Math.sin(menuAnim*2)*8;
-    ctx.fillStyle = C.COL_GOLD;
-    ctx.fillText('EDWINS', C.W/2, C.H/2 - 90);
-    ctx.font = 'bold 38px system-ui';
-    ctx.fillText('NINJAÄVENTYR', C.W/2, C.H/2 - 48);
+    ctx.font = 'bold 52px system-ui'; ctx.fillStyle = C.COL_GOLD;
+    ctx.fillText('EDWINS', C.W/2, 90);
+    ctx.font = 'bold 36px system-ui';
+    ctx.fillText('NINJAÄVENTYR', C.W/2, 134);
     ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
-    ctx.font = '16px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.65)';
-    ctx.fillText('Välj svårighetsgrad för att börja', C.W/2, C.H/2);
+    // Leaderboard
+    const bw = 480, bx = C.W/2 - bw/2;
+    ctx.font = 'bold 14px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.55)';
+    ctx.textAlign = 'center';
+    ctx.fillText('— TOPPLISTA —', C.W/2, 174);
 
-    const hoverBarn  = mouse && inBtn(mouse, C.W/2-100, C.H/2+42, 160, 46);
-    const hoverVuxen = mouse && inBtn(mouse, C.W/2+100, C.H/2+42, 160, 46);
-    button(ctx, 'BARN  (enklare)', C.W/2-100, C.H/2+42, 160, 46, hoverBarn);
-    button(ctx, 'VUXEN (svårare)', C.W/2+100, C.H/2+42, 160, 46, hoverVuxen);
+    if (rows && rows.length) {
+      const startY = 196, rowH = 30;
+      rows.slice(0, 8).forEach((r, i) => {
+        const y = startY + i * rowH;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.04)' : 'transparent';
+        ctx.fillRect(bx, y - 16, bw, rowH - 2);
+        ctx.font = '14px system-ui'; ctx.textAlign = 'left';
+        ctx.fillStyle = i === 0 ? C.COL_GOLD : '#ddd';
+        ctx.fillText(`${i+1}.  ${r.name}`, bx + 14, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(Number(r.score).toLocaleString('sv'), bx + bw - 14, y);
+      });
+    } else {
+      ctx.font = '14px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.40)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Inga poäng ännu — bli den första!', C.W/2, 220);
+    }
 
-    ctx.font = '13px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.45)';
-    ctx.fillText('Piltangenter/WASD · Mellanslag=hopp · Z=attack · X=kasta vapen', C.W/2, C.H/2+106);
+    // Controls hint
+    ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.38)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Piltangenter/WASD · Mellanslag=hopp · Z=attack · X=kasta vapen', C.W/2, C.H - 28);
     ctx.textAlign = 'left';
-    return { hoverBarn, hoverVuxen };
   }
 
   // ── LEVEL UP FLASH ────────────────────────────────────────────────────────

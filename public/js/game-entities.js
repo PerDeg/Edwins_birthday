@@ -86,25 +86,13 @@ function drawNinjaPlayer(ctx, p) {
   ctx.fillStyle = C.COL_BLACK;
   ctx.fillRect(-3.5, 0, 7, h * 0.34); ctx.restore();
 
-  // Front arm / sword
-  if (state === 'attack') {
-    const prog = Math.min(1, p.attackTimer / (C.ATTACK_DURATION * 0.5));
-    ctx.save(); ctx.translate(w * 0.35, h * 0.24);
-    ctx.rotate((-Math.PI / 4 + prog * Math.PI * 0.65));
-    ctx.fillStyle = C.COL_BLACK; ctx.fillRect(-3.5, 0, 7, h * 0.34);
-    // Blade
-    ctx.fillStyle = '#d4d4d4'; ctx.fillRect(0, -3, 38, 6);
-    // Hilt
-    ctx.fillStyle = C.COL_GOLD; ctx.fillRect(-5, -6, 5, 12);
-    ctx.restore();
-  } else {
-    ctx.save(); ctx.translate(w * 0.35, h * 0.24);
-    ctx.rotate((-armSwing * Math.PI) / 180);
-    ctx.fillStyle = C.COL_BLACK; ctx.fillRect(-3.5, 0, 7, h * 0.34);
-    // Sheathed sword on back
-    ctx.fillStyle = '#888'; ctx.fillRect(-w * 0.6, h * 0.14, 4, h * 0.38);
-    ctx.restore();
-  }
+  // Front arm
+  ctx.save(); ctx.translate(w * 0.35, h * 0.24);
+  ctx.rotate(state === 'attack'
+    ? (-Math.PI / 4 + Math.min(1, p.attackTimer / (C.ATTACK_DURATION * 0.5)) * Math.PI * 0.65)
+    : (-armSwing * Math.PI) / 180);
+  ctx.fillStyle = C.COL_BLACK; ctx.fillRect(-3.5, 0, 7, h * 0.34);
+  ctx.restore();
 
   // Head
   const headY = h * 0.05 - headBob;
@@ -220,8 +208,7 @@ function drawArcher(ctx, e) {
 
 // ── Entity classes ────────────────────────────────────────────────────────────
 class Player {
-  constructor(difficulty) {
-    const d = C.DIFF[difficulty];
+  constructor() {
     this.x = 100; this.y = 300;
     this.w = 30; this.h = 48;
     this.vx = 0; this.vy = 0;
@@ -236,7 +223,7 @@ class Player {
     this.attackCooldown = 0;
     this.invincible = 0;
     this.prevState = 'idle';
-    this.lives = d.lives;
+    this.lives = C.LIVES;
     this.alive = true;
   }
   get attackActive() {
@@ -394,18 +381,24 @@ class WeaponPickup {
   }
   update(dt) { this.bobTimer += dt * 2.4; }
   draw(ctx) {
+    if (this.type === 'heart') { this.drawHeart(ctx); return; }
+
     const by = Math.sin(this.bobTimer) * 4;
     const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
 
     ctx.save();
-    const glowCol = this.type === 'triple' ? '#ff6b35' : this.type === 'knife' ? '#4fc3f7' : '#ffffff';
-    ctx.shadowColor = glowCol;
-    ctx.shadowBlur  = 10 + Math.sin(this.bobTimer * 2) * 4;
+    // Draw cheap glow ring (no shadowBlur — too expensive)
+    const glowCol = this.type === 'triple' ? '#ff6b35' : this.type === 'knife' ? '#4fc3f7' : '#c8c8ff';
+    const glowR = 16 + Math.sin(this.bobTimer * 2) * 3;
+    ctx.globalAlpha = 0.22 + Math.sin(this.bobTimer * 2) * 0.08;
+    ctx.fillStyle = glowCol;
+    ctx.beginPath(); ctx.arc(cx, cy, glowR, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
 
     if (this.type === 'shuriken') {
       if (typeof Sprites !== 'undefined' &&
           Sprites.drawRotated(ctx, 'weapon-shuriken', cx, cy, 26, 26, this.bobTimer)) {
-        ctx.shadowBlur = 0; ctx.restore(); return;
+        ctx.restore(); return;
       }
       // Fallback programmatic shuriken
       ctx.fillStyle = '#e0e0e0';
@@ -437,7 +430,7 @@ class WeaponPickup {
     } else if (this.type === 'knife') {
       if (typeof Sprites !== 'undefined' &&
           Sprites.drawRotated(ctx, 'weapon-kunai', cx, cy, 32, 12, -0.3)) {
-        ctx.shadowBlur = 0; ctx.restore(); return;
+        ctx.restore(); return;
       }
       // Fallback programmatic knife
       ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.4);
@@ -446,9 +439,37 @@ class WeaponPickup {
       ctx.restore();
     }
 
-    ctx.shadowBlur = 0;
     ctx.restore();
   }
+
+  drawHeart(ctx) {
+    const by = Math.sin(this.bobTimer) * 4;
+    const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
+    // Use gem.png if player is at full lives (set by update before draw)
+    const spriteName = this.isGem ? 'gem' : 'heart';
+    const img = typeof Sprites !== 'undefined' && Sprites.has(spriteName);
+    ctx.save();
+    if (img) {
+      // Gentle scale-pulse
+      const s = 1 + Math.sin(this.bobTimer * 3) * 0.08;
+      ctx.translate(cx, cy);
+      ctx.scale(s, s);
+      Sprites.drawRotated(ctx, spriteName, 0, 0, 28, 28, 0);
+    } else {
+      // Fallback: red heart shape
+      ctx.fillStyle = this.isGem ? '#a0f0ff' : '#e63946';
+      ctx.translate(cx, cy + 2);
+      ctx.beginPath();
+      ctx.moveTo(0, 4);
+      ctx.bezierCurveTo(0, -4, -12, -4, -12, 4);
+      ctx.bezierCurveTo(-12, 10, 0, 16, 0, 16);
+      ctx.bezierCurveTo(0, 16, 12, 10, 12, 4);
+      ctx.bezierCurveTo(12, -4, 0, -4, 0, 4);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
 }
 
@@ -530,11 +551,28 @@ class Boss {
   }
   get phase2() { return this.hp <= Math.ceil(this.maxHp / 2); }
 
-  update(dt, player, enemyShurikens) {
+  update(dt, player, enemyShurikens, playerShurikens) {
     this.facing = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
     this.animTimer += dt;
     if (this.animTimer > 0.12) { this.animFrame = (this.animFrame + 1) % 8; this.animTimer = 0; }
     if (this.invincible > 0) this.invincible -= dt;
+
+    // Dodge incoming player projectiles
+    if (this.onGround && this.invincible <= 0 && playerShurikens) {
+      for (const s of playerShurikens) {
+        if (!s.alive) continue;
+        // Check if projectile is heading toward boss center within ~80px vertical
+        const bossCX = this.x + this.w / 2;
+        const approaching = (s.vx > 0 && s.x < bossCX) || (s.vx < 0 && s.x > bossCX);
+        const willHit = Math.abs(s.x + s.vx * 0.25 - bossCX) < 70 &&
+                        Math.abs(s.y - (this.y + this.h * 0.5)) < 80;
+        if (approaching && willHit) {
+          this.vy = C.JUMP_V * 0.60;   // dodge jump
+          this.vx = -this.facing * 120; // hop to the side
+          break;
+        }
+      }
+    }
 
     this.vy += C.GRAVITY * dt;
     this.x  += this.vx * dt;

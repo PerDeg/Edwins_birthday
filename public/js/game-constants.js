@@ -23,17 +23,17 @@ const C = {
 
   SHURIKEN_SPEED:  420,
   KNIFE_SPEED:     360,
-  THROW_COOLDOWN:  0.55,
+  THROW_COOLDOWN:  0.20,   // fast re-throw
 
   COIN_VALUE:          5,
   KILL_SCORE:         10,
   BOSS_KILL_SCORE:   150,
   LEVEL_CLEAR_BONUS: 300,
 
-  DIFF: {
-    barn:  { lives: 5, speedMul: 0.60, shootMul: 1.6 },
-    vuxen: { lives: 3, speedMul: 1.00, shootMul: 1.0 },
-  },
+  // Single-mode difficulty (no selection)
+  LIVES:           5,
+  ENEMY_SPEED_MUL: 0.70,
+  SHOOT_MUL:       1.4,
 
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
@@ -85,6 +85,7 @@ const C = {
       ],
       pickups: [
         { type: 'shuriken', x: 1090, y: 354 },
+        { type: 'heart',    x: 1920, y: 260 },
         { type: 'triple',   x: 2615, y: 254 },
       ],
       boss: { x: 3390, y: 308, hp: 8, type: 'samurai' },
@@ -152,6 +153,7 @@ const C = {
       pickups: [
         { type: 'shuriken', x: 800,  y: 338 },
         { type: 'knife',    x: 2040, y: 368 },
+        { type: 'heart',    x: 2700, y: 258 },
         { type: 'triple',   x: 3660, y: 266 },
       ],
       boss: { x: 4220, y: 298, hp: 12, type: 'archer-boss' },
@@ -232,6 +234,7 @@ const C = {
       pickups: [
         { type: 'shuriken', x: 580,  y: 386 },
         { type: 'knife',    x: 1495, y: 266 },
+        { type: 'heart',    x: 2360, y: 258 },
         { type: 'triple',   x: 2585, y: 350 },
         { type: 'knife',    x: 3925, y: 338 },
       ],
