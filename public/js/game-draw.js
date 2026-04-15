@@ -38,7 +38,10 @@ function draw(dt) {
   ctx.save();
   ctx.translate(-cam.x + cam.shake, cam.shake * 0.4);
 
-  Background.drawGround(ctx, cam.x);
+  // Skip programmatic ground when the level bg image (which includes its own ground) is loaded
+  if (typeof Sprites === 'undefined' || !Sprites.has('bg-level' + (bgTheme + 1))) {
+    Background.drawGround(ctx, cam.x);
+  }
 
   for (const p of platforms) {
     if (p.x + p.w < cam.x - 20 || p.x > cam.x + C.W + 20) continue;

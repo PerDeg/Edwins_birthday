@@ -56,6 +56,17 @@ function loadLevel(idx) {
     }
   });
 
+  // Spawn ground-level grunts on virtual ground-platform segments
+  if (ld.groundEnemies) {
+    ld.groundEnemies.forEach(e => {
+      const groundPlat = { x: e.x, y: C.GROUND_Y, w: e.range, h: 14 };
+      const ex = e.x + e.range * 0.35;
+      const g = new Grunt(ex, groundPlat, C.ENEMY_SPEED_MUL);
+      g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+      enemies.push(g);
+    });
+  }
+
   const bd       = ld.boss;
   const bossPlat = platforms[platforms.length - 1];
   boss = new Boss(bd.x, bd.y, bossPlat, bd.hp, bd.type);

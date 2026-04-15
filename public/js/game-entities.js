@@ -428,12 +428,14 @@ class WeaponPickup {
         });
       }
     } else if (this.type === 'knife') {
+      // Kunai.png points up; rotate so it faces upper-right at pickup
+      const kAngle = Math.PI / 2 - 0.45;
       if (typeof Sprites !== 'undefined' &&
-          Sprites.drawRotated(ctx, 'weapon-kunai', cx, cy, 32, 12, -0.3)) {
+          Sprites.drawRotated(ctx, 'weapon-kunai', cx, cy, 32, 12, kAngle)) {
         ctx.restore(); return;
       }
       // Fallback programmatic knife
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.4);
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(kAngle);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-10, -3, 22, 5);
       ctx.fillStyle = '#c8a83c'; ctx.fillRect(-14, -5, 5, 9);
       ctx.restore();
@@ -482,7 +484,8 @@ class PlayerShuriken {
     this.x = x; this.y = y;
     this.vx = facing * speed * Math.cos(angleOffset);
     this.vy = speed  * Math.sin(angleOffset);
-    this.rot     = 0;
+    // Kunai.png points UP (north = 0). Offset so tip faces travel direction, then tumbles.
+    this.rot     = this.type === 'knife' ? (facing > 0 ? Math.PI / 2 : -Math.PI / 2) : 0;
     this.facing  = facing;
     this.w       = type === 'knife' ? 22 : 12;
     this.h       = type === 'knife' ? 6  : 12;
@@ -492,18 +495,17 @@ class PlayerShuriken {
   update(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.rot += (this.vx > 0 ? 1 : -1) * (this.type === 'knife' ? 0 : 14) * dt;
+    this.rot += (this.vx > 0 ? 1 : -1) * (this.type === 'knife' ? 5 : 14) * dt;
     if (this.x < -300 || this.x > 8000 || this.y > C.H + 100 || this.y < -100) this.alive = false;
   }
   draw(ctx) {
     if (this.type === 'knife') {
-      const angle = this.vx > 0 ? -0.12 : Math.PI + 0.12;
       if (typeof Sprites !== 'undefined' &&
-          Sprites.drawRotated(ctx, 'weapon-kunai', this.x, this.y, 28, 10, angle)) return;
+          Sprites.drawRotated(ctx, 'weapon-kunai', this.x, this.y, 28, 10, this.rot)) return;
       // Fallback
       ctx.save();
       ctx.translate(this.x, this.y);
-      ctx.rotate(this.vx > 0 ? 0 : Math.PI);
+      ctx.rotate(this.rot);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-11, -3, 23, 6);
       ctx.fillStyle = '#c8a83c'; ctx.fillRect(-15, -5, 5, 10);
       ctx.restore();
