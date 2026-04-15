@@ -53,6 +53,7 @@ body {
 #btn-right { width: 64px; height: 64px; bottom: 50px; left: 96px; }
 #btn-jump  { width: 72px; height: 72px; bottom: 45px; right: 20px; background: rgba(200,168,60,0.2); border-color: rgba(200,168,60,0.5); }
 #btn-attack{ width: 58px; height: 58px; bottom: 55px; right: 104px; background: rgba(230,57,70,0.2); border-color: rgba(230,57,70,0.4); }
+#btn-throw { width: 56px; height: 56px; bottom: 115px; right: 104px; background: rgba(79,195,247,0.2); border-color: rgba(79,195,247,0.4); }
 
 /* Back link */
 #back-link {
