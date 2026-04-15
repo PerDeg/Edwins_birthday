@@ -267,15 +267,29 @@ class Archer {
   constructor(px, platform, speedMul, shootInterval) {
     this.x = px; this.y = platform.y - 48;
     this.w = 28; this.h = 48;
-    this.platform = platform;
-    this.facing = 1;
-    this.shootTimer = shootInterval * 0.5;
+    this.platform    = platform;
+    this.facing      = 1;
+    this.shootTimer  = shootInterval * 0.5;
     this.shootInterval = shootInterval;
     this.alive = true;
-    this.type = 'archer';
-    this.hits = 0; // 2 hits to kill
+    this.type  = 'archer';
+    this.hits  = 0;   // 2 hits to kill
+    // Slow patrol — TODO: tweak speed per level difficulty
+    this.vx = (Math.random() > 0.5 ? 1 : -1) * 30 * speedMul;
+    this.animFrame = 0;
+    this.animTimer = 0;
   }
   update(dt, player, shurikens) {
+    // Slow patrol movement
+    this.x += this.vx * dt;
+    const { x: px, w: pw } = this.platform;
+    if (this.x < px + 6 || this.x + this.w > px + pw - 6) {
+      this.vx *= -1;
+      this.x   = Math.max(px + 6, Math.min(px + pw - 6 - this.w, this.x));
+    }
+    this.animTimer += dt;
+    if (this.animTimer > 0.14) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
+
     this.facing = player.x > this.x ? 1 : -1;
     this.shootTimer -= dt;
     if (this.shootTimer <= 0) {
@@ -317,27 +331,45 @@ function rectsOverlap(a, b) {
 
 // ── Coin ──────────────────────────────────────────────────────────────────────
 class Coin {
-  constructor(x, y) {
+  constructor(x, y, type = 'gold') {
     this.x = x; this.y = y;
-    this.w = 14; this.h = 14;
+    this.type = type;   // 'gold' | 'silver' | 'copper'
+    this.w = 20; this.h = 20;
     this.alive = true;
-    this.bobTimer = Math.random() * Math.PI * 2;
+    this.bobTimer  = Math.random() * Math.PI * 2;
+    this.animFrame = Math.random() * 8;  // stagger frame start
+    this.animTimer = 0;
   }
-  update(dt) { this.bobTimer += dt * 3.2; }
+  update(dt) {
+    this.bobTimer  += dt * 3.0;
+    this.animTimer += dt;
+    if (this.animTimer >= 0.09) { this.animTimer = 0; this.animFrame++; }
+  }
   draw(ctx) {
-    const by = Math.sin(this.bobTimer) * 3;
-    const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
+    const by    = Math.sin(this.bobTimer) * 3;
+    const drawX = this.x;
+    const drawY = this.y + by;
+    const spriteName = `coin-${this.type}`;
+
+    if (typeof Sprites !== 'undefined' && Sprites.has(spriteName)) {
+      Sprites.drawCoin(ctx, spriteName, this.animFrame, drawX - 2, drawY - 2, this.w + 4);
+      return;
+    }
+
+    // Programmatic fallback — gold disc with shine
+    const cx = drawX + this.w / 2, cy = drawY + this.h / 2;
+    const colMap = { gold:'#ffd700', silver:'#c0c0c0', copper:'#b87333' };
+    const rimMap = { gold:'#c8a020', silver:'#909090', copper:'#8a5320' };
     ctx.save();
-    ctx.fillStyle = '#ffd700';
-    ctx.strokeStyle = '#c8a020';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(cx, cy, 7, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // Shine
+    ctx.fillStyle   = colMap[this.type] || '#ffd700';
+    ctx.strokeStyle = rimMap[this.type] || '#c8a020';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.ellipse(cx, cy, 8, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.beginPath(); ctx.ellipse(cx - 2, cy - 2, 2.5, 3.5, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx - 2, cy - 2, 2.8, 3.8, -0.5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
-  bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  bounds() { return { x: this.x, y: this.y + Math.sin(this.bobTimer) * 3, w: this.w, h: this.h }; }
 }
 
 // ── WeaponPickup ──────────────────────────────────────────────────────────────

@@ -223,6 +223,7 @@ function updateCoins(dt) {
     if (rectsOverlap(player.bounds(), c.bounds())) {
       c.alive = false;
       score += C.COIN_VALUE;
+      Audio.coin();
       floatingTexts.push(new FloatingText(c.x + c.w/2, c.y - 8, `+${C.COIN_VALUE}`, '#ffd700', 0.85));
     }
   }
