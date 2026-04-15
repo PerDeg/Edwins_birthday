@@ -12,18 +12,24 @@
 
   <canvas id="game-canvas" style="position:absolute;"></canvas>
 
-  <!-- Score name input overlay -->
-  <form id="name-form" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:50; background:rgba(0,0,0,0.6); flex-direction:column; gap:12px;">
-    <div style="background:#12121f; border:1.5px solid #c8a83c; border-radius:8px; padding:2rem 2.5rem; text-align:center; max-width:340px; width:90%;">
-      <p style="font-family:system-ui; color:#c8a83c; letter-spacing:.15em; margin-bottom:1rem; font-size:.9rem;">ANGE DITT NAMN</p>
-      <input id="name-input" type="text" maxlength="20" placeholder="Ninja-namn…"
-        style="width:100%; padding:.65rem .9rem; background:rgba(255,255,255,.06); border:1px solid rgba(200,168,60,.35); border-radius:4px; color:#f0ede0; font-size:1.1rem; font-family:system-ui; outline:none; margin-bottom:1rem;">
-      <button type="submit"
-        style="width:100%; padding:.75rem; background:#e63946; border:none; border-radius:4px; color:#fff; font-family:system-ui; font-size:.95rem; font-weight:700; letter-spacing:.14em; cursor:pointer;">
-        SKICKA IN
-      </button>
+  <!-- Score / name-entry overlay (shown after game over or victory) -->
+  <div id="submit-overlay">
+    <div id="submit-box">
+      <div id="submit-heading">GAME OVER</div>
+      <div id="submit-score"></div>
+      <div id="submit-rank" style="display:none">
+        Du kom på plats #<span id="rank-num"></span>!
+      </div>
+      <label id="submit-name-label">Skriv in ditt namn:</label>
+      <input id="name-input" type="text" maxlength="20"
+             placeholder="Ninja-namn…" autocomplete="off" spellcheck="false">
+      <div id="submit-btn-row">
+        <button id="btn-play-again" class="ui-btn">Spela igen</button>
+        <button id="btn-quit"       class="ui-btn ui-btn-red">Avsluta</button>
+      </div>
+      <a href="#" id="btn-view-scores">Highscore top10 ›</a>
     </div>
-  </form>
+  </div>
 
   <!-- Mobile touch controls -->
   <div id="touch-controls">

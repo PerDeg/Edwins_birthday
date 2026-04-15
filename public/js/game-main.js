@@ -89,77 +89,84 @@ function triggerShake(mag, dur) { cam.shake = mag; cam.shakeDur = dur; }
 
 // ── Score submit ───────────────────────────────────────────────────────────────
 let submitName = '', submitRank = null, leaderboard = [], submitDone = false;
-const nameInput = document.getElementById('name-input');
-const nameForm  = document.getElementById('name-form');
+
+const _nameInput      = document.getElementById('name-input');
+const _submitOverlay  = document.getElementById('submit-overlay');
+const _submitHeading  = document.getElementById('submit-heading');
+const _submitScore    = document.getElementById('submit-score');
+const _submitRankEl   = document.getElementById('submit-rank');
+const _rankNum        = document.getElementById('rank-num');
+
+function _showOverlay() {
+  if (!_submitOverlay) return;
+  const isVictory = (gameState === STATE.VICTORY);
+  _submitHeading.textContent = isVictory ? 'GRATTIS! 🥷' : 'GAME OVER';
+  _submitScore.textContent   =
+    `Poäng: ${score.toLocaleString('sv')}  ·  Nivå ${level}  ·  ${kills} fiender`;
+  if (_submitRankEl) _submitRankEl.style.display = 'none';
+  if (_nameInput)  { _nameInput.value = ''; }
+  _submitOverlay.style.display = 'flex';
+  setTimeout(() => _nameInput && _nameInput.focus(), 80);
+}
+
+function _hideOverlay() {
+  if (_submitOverlay) _submitOverlay.style.display = 'none';
+}
 
 // ── Loop timestamp ─────────────────────────────────────────────────────────────
 let lastTime = 0;
 
-// ── UI Interaction ─────────────────────────────────────────────────────────────
+// ── Canvas UI click handler (menu + level-complete only) ──────────────────────
 function handleClick() {
   const b = {
     barn:      { x: C.W * 0.5 - 100, y: C.H * 0.5 + 42, w: 160, h: 46 },
     vuxen:     { x: C.W * 0.5 + 100, y: C.H * 0.5 + 42, w: 160, h: 46 },
-    submit:    { x: C.W * 0.5, y: C.H * 0.5 + 58, w: 230, h: 50 },
-    restart:   { x: C.W * 0.5, y: C.H * 0.5 + 122, w: 180, h: 42 },
-    leaderboardBtn: { x: C.W * 0.5, y: C.H * 0.5 + 74, w: 220, h: 42 },
-    levelNext: { x: C.W * 0.5, y: C.H * 0.5 + 80, w: 140, h: 40 },
+    levelNext: { x: C.W * 0.5,       y: C.H * 0.5 + 80, w: 240, h: 50 },
+    boardBack: { x: C.W * 0.5,       y: C.H * 0.5 + 200, w: 180, h: 42 },
   };
 
   for (const [key, box] of Object.entries(b)) {
-    const inBox = mouse.x >= box.x - box.w/2 && mouse.x <= box.x + box.w/2 &&
-                  mouse.y >= box.y - box.h/2 && mouse.y <= box.y + box.h/2;
-
-    if (!inBox) continue;
+    const hit = mouse.x >= box.x - box.w/2 && mouse.x <= box.x + box.w/2 &&
+                mouse.y >= box.y - box.h/2 && mouse.y <= box.y + box.h/2;
+    if (!hit) continue;
 
     if (key === 'barn' && gameState === STATE.MENU) {
-      difficulty = 'barn';
-      gOverSubmitShown = false;
-      victorySubmitShown = false;
-      initGame(difficulty);
+      difficulty = 'barn'; _resetSubmitFlags(); initGame(difficulty);
     } else if (key === 'vuxen' && gameState === STATE.MENU) {
-      difficulty = 'vuxen';
-      gOverSubmitShown = false;
-      victorySubmitShown = false;
-      initGame(difficulty);
-    } else if (key === 'submit' && (gameState === STATE.SUBMIT || gameState === STATE.VICTORY)) {
-      finishSubmit();
-    } else if (key === 'restart' && (gameState === STATE.SUBMIT || gameState === STATE.LEADERBOARD || gameState === STATE.VICTORY)) {
-      gOverSubmitShown = false;
-      victorySubmitShown = false;
-      gameState = STATE.MENU;
-    } else if (key === 'leaderboardBtn' && gameState === STATE.SUBMIT) {
-      fetchLeaderboard();
-      gameState = STATE.LEADERBOARD;
+      difficulty = 'vuxen'; _resetSubmitFlags(); initGame(difficulty);
     } else if (key === 'levelNext' && gameState === STATE.LEVEL_COMPLETE) {
       advanceNextLevel();
+    } else if (key === 'boardBack' && gameState === STATE.LEADERBOARD) {
+      _resetSubmitFlags(); gameState = STATE.MENU;
     }
   }
 }
 
+// ── Score submit (called by HTML overlay buttons) ─────────────────────────────
 function startSubmit() {
   gameState = STATE.SUBMIT;
-  submitName = '';
-  submitRank = null;
-  submitDone = false;
-  if (nameInput) nameInput.value = '';
-  if (nameInput) nameInput.focus();
+  submitName = ''; submitRank = null; submitDone = false;
+  _showOverlay();
 }
 
-function finishSubmit() {
-  if (!submitName.trim()) return;
-  const payload = {
-    name: submitName.trim(),
-    score: score,
-    difficulty: difficulty,
-    level: level,
-    kills: kills,
-  };
-  fetch('/api/scores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+function finishSubmit(name) {
+  const n = (name || '').trim();
+  if (!n) return;
+  submitName = n;
+  const payload = { name: n, score, difficulty, level, kills };
+  fetch('/api/scores', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
     .then(r => r.json())
     .then(d => {
       submitRank = d.rank;
       submitDone = true;
+      if (_submitRankEl && _rankNum) {
+        _rankNum.textContent = d.rank;
+        _submitRankEl.style.display = 'block';
+      }
     })
     .catch(e => console.error('Score submit error:', e));
 }
@@ -171,8 +178,12 @@ function fetchLeaderboard() {
     .catch(e => console.error('Leaderboard fetch error:', e));
 }
 
+function _resetSubmitFlags() {
+  _gOverShown = false; _victoryShown = false;
+}
+
 // ── Main Game Loop ─────────────────────────────────────────────────────────────
-let gOverSubmitShown = false, victorySubmitShown = false;
+let _gOverShown = false, _victoryShown = false;
 function loop(now) {
   const dt = lastTime === 0 ? 0 : Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
@@ -183,27 +194,24 @@ function loop(now) {
   if (gameState === STATE.LEVEL_COMPLETE && levelCompleteTimer <= 0) {
     advanceNextLevel();
   }
-  if (gameState === STATE.GAMEOVER && !gOverSubmitShown) {
-    gOverSubmitShown = true;
-    startSubmit();
+  if (gameState === STATE.GAMEOVER && !_gOverShown) {
+    _gOverShown = true; startSubmit();
   }
-  if (gameState === STATE.VICTORY && !victorySubmitShown) {
-    victorySubmitShown = true;
-    startSubmit();
+  if (gameState === STATE.VICTORY && !_victoryShown) {
+    _victoryShown = true; startSubmit();
   }
 
   Object.assign(prevKeys, keys);
   requestAnimationFrame(loop);
 }
 
-// ── Startup ────────────────────────────────────────────────────────────────────
+// ── Startup: canvas click ─────────────────────────────────────────────────────
 canvas.addEventListener('click', e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / scale;
   mouse.y = (e.clientY - r.top)  / scale;
   handleClick();
 });
-
 canvas.addEventListener('touchend', e => {
   if (e.touches.length === 0) {
     const t = e.changedTouches[0], r = canvas.getBoundingClientRect();
@@ -213,16 +221,30 @@ canvas.addEventListener('touchend', e => {
   }
 });
 
-if (nameForm) {
-  nameForm.addEventListener('submit', e => {
-    e.preventDefault();
-    if (nameInput) submitName = nameInput.value;
-    finishSubmit();
-  });
-}
+// ── HTML overlay buttons ──────────────────────────────────────────────────────
+document.getElementById('btn-play-again')?.addEventListener('click', () => {
+  _hideOverlay();
+  _resetSubmitFlags();
+  gameState = STATE.MENU;
+});
+
+document.getElementById('btn-quit')?.addEventListener('click', () => {
+  const n = _nameInput ? _nameInput.value : '';
+  finishSubmit(n);
+  fetchLeaderboard();
+  _hideOverlay();
+  gameState = STATE.LEADERBOARD;
+});
+
+document.getElementById('btn-view-scores')?.addEventListener('click', e => {
+  e.preventDefault();
+  const n = _nameInput ? _nameInput.value : '';
+  finishSubmit(n);
+  fetchLeaderboard();
+  _hideOverlay();
+  gameState = STATE.LEADERBOARD;
+});
 
 // Preload sprites and start loop
 Promise.resolve(typeof Sprites !== 'undefined' && Sprites.load ? Sprites.load() : undefined)
-  .finally(() => {
-    requestAnimationFrame(loop);
-  });
+  .finally(() => { requestAnimationFrame(loop); });

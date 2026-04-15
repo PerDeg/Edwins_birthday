@@ -58,7 +58,7 @@ const HUD = (() => {
 
     // ── Weapon indicator ──
     if (playerWeapon && playerWeapon !== 'sword') {
-      const labels = { shuriken: '✦ KASTST.', triple: '✦✦✦ TRIPPEL', knife: '» KNIV' };
+      const labels = { shuriken: '✦ KASTSTJÄRNA  [X]', triple: '✦✦✦ TRIPPELSTJÄRNA  [X]', knife: '» KNIV  [X]' };
       ctx.font = 'bold 12px system-ui';
       ctx.textAlign = 'right';
       ctx.fillStyle = '#4fc3f7';

@@ -98,14 +98,29 @@ const Sprites = (() => {
     return true;
   }
 
-  // Draw a coin sprite frame (auto-sized square frames).
+  // Draw a coin sprite frame.
+  // Handles both horizontal strips (width > height) and vertical strips (height > width).
   function drawCoin(ctx, name, frame, x, y, size) {
     const img = _imgs[name];
     if (!img) return false;
-    const total = frameCount(name);
-    const fw    = img.naturalHeight;  // square frame
-    const f     = Math.floor(frame) % total;
-    ctx.drawImage(img, f * fw, 0, fw, fw, x, y, size, size);
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    let fw, fh, sx, sy, total;
+
+    if (iw >= ih) {
+      // Horizontal strip: frames go left→right, each frame is ih×ih
+      fw = fh = ih;
+      total   = Math.max(1, Math.round(iw / ih));
+      const f = Math.floor(frame) % total;
+      sx = f * fw; sy = 0;
+    } else {
+      // Vertical strip: frames go top→bottom, each frame is iw×iw
+      fw = fh = iw;
+      total   = Math.max(1, Math.round(ih / iw));
+      const f = Math.floor(frame) % total;
+      sx = 0; sy = f * fh;
+    }
+
+    ctx.drawImage(img, sx, sy, fw, fh, x, y, size, size);
     return true;
   }
 

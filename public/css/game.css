@@ -55,6 +55,114 @@ body {
 #btn-attack{ width: 58px; height: 58px; bottom: 55px; right: 104px; background: rgba(230,57,70,0.2); border-color: rgba(230,57,70,0.4); }
 #btn-throw { width: 56px; height: 56px; bottom: 115px; right: 104px; background: rgba(79,195,247,0.2); border-color: rgba(79,195,247,0.4); }
 
+/* ── Score / name-entry overlay ─────────────────────────────────────────────── */
+#submit-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  font-family: system-ui, sans-serif;
+}
+
+#submit-box {
+  background: #0c0c1a;
+  border: 1.5px solid #c8a83c;
+  border-radius: 10px;
+  padding: 2rem 2.4rem 1.6rem;
+  text-align: center;
+  max-width: 370px;
+  width: 92%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+#submit-heading {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #c8a83c;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 18px rgba(200,168,60,0.45);
+}
+
+#submit-score {
+  color: #f0ede0;
+  font-size: 0.88rem;
+  opacity: 0.75;
+  letter-spacing: 0.06em;
+}
+
+#submit-rank {
+  color: #c8a83c;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+#submit-name-label {
+  color: rgba(200,168,60,0.72);
+  font-size: 0.80rem;
+  letter-spacing: 0.13em;
+  text-align: left;
+  margin-top: 0.3rem;
+}
+
+#name-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,168,60,0.38);
+  border-radius: 5px;
+  color: #f0ede0;
+  font-size: 1.05rem;
+  font-family: system-ui;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+#name-input:focus { border-color: rgba(200,168,60,0.80); }
+
+#submit-btn-row {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 0.2rem;
+}
+
+.ui-btn {
+  flex: 1;
+  padding: 0.68rem 0.5rem;
+  border-radius: 5px;
+  border: 1.5px solid rgba(200,168,60,0.50);
+  background: rgba(200,168,60,0.10);
+  color: #c8a83c;
+  font-family: system-ui;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ui-btn:hover { background: rgba(200,168,60,0.24); }
+
+.ui-btn-red {
+  border-color: rgba(230,57,70,0.50);
+  background: rgba(230,57,70,0.10);
+  color: #e63946;
+}
+.ui-btn-red:hover { background: rgba(230,57,70,0.22); }
+
+#btn-view-scores {
+  color: rgba(200,168,60,0.50);
+  font-size: 0.78rem;
+  text-decoration: none;
+  letter-spacing: 0.10em;
+  margin-top: 0.15rem;
+  transition: color 0.15s;
+}
+#btn-view-scores:hover { color: #c8a83c; }
+
 /* Back link */
 #back-link {
   position: fixed;

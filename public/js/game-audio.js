@@ -157,7 +157,13 @@ const Audio = (() => {
     djump()  { tone(330, 'sine', 0.13, 0.18, 0, 660); },
     hit()    { tone(120, 'sawtooth', 0.26, 0.50); tone(60, 'sine', 0.12, 0.25, 0.03); },
     defeat() { tone(130, 'square', 0.12, 0.42); tone(65, 'sine', 0.22, 0.32, 0.06); },
-    coin()   { tone(1047, 'sine', 0.08, 0.18); tone(1319, 'sine', 0.10, 0.14, 0.06); },
+    coin() {
+      // Rising three-note chime: C6 → E6 → G6
+      tone(1047, 'sine', 0.06, 0.22);
+      tone(1319, 'sine', 0.06, 0.18, 0.055);
+      tone(1568, 'sine', 0.08, 0.14, 0.105);
+      tone(2093, 'sine', 0.05, 0.08, 0.155); // sparkle top
+    },
     levelUp() {
       [329, 392, 494, 659].forEach((f, i) => tone(f, 'triangle', 0.20, 0.28, i * 0.12));
     },

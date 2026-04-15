@@ -231,14 +231,15 @@ function updateCoins(dt) {
 
 // ── Pickups ────────────────────────────────────────────────────────────────────
 function updatePickups(dt) {
-  const labels = { shuriken: 'KASTST!', triple: '3×STJÄRNA!', knife: 'KNIV!' };
+  const labels = { shuriken: 'KASTSTJÄRNA!', triple: '3× STJÄRNA!', knife: 'KNIV!' };
   for (const p of pickups) {
     if (!p.alive) continue;
     p.update(dt);
     if (rectsOverlap(player.bounds(), p.bounds())) {
       p.alive = false;
       playerWeapon = p.type;
-      floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, labels[p.type] || p.type, '#4fc3f7', 1.2));
+      floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10,  labels[p.type] || p.type, '#4fc3f7', 1.2));
+      floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, 'TRYCK X FÖR ATT KASTA', 'rgba(255,255,255,0.75)', 0.78));
       Audio.djump();
     }
   }
