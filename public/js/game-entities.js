@@ -2,6 +2,9 @@
 
 // ── Drawing helpers ──────────────────────────────────────────────────────────
 function drawShuriken(ctx, x, y, rot) {
+  if (typeof Sprites !== 'undefined' &&
+      Sprites.drawRotated(ctx, 'weapon-shuriken', x, y, 16, 16, rot)) return;
+  // Fallback programmatic shuriken
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rot);
@@ -22,31 +25,38 @@ function drawNinjaPlayer(ctx, p) {
   const { x, y, w, h, facing, animFrame, state, invincible } = p;
   if (invincible > 0 && Math.floor(invincible * 10) % 2 === 0) return; // blink
 
-  // ── Sprite path ──────────────────────────────────────────────────────────
+  // ── Sequence sprite path ─────────────────────────────────────────────────
   if (typeof Sprites !== 'undefined') {
-    const FRAME_W = 32, FRAME_H = 32;
-    const DW = w * 2.8, DH = h * 1.85; // render larger than hitbox
+    const DW = w * 2.8, DH = h * 1.85;   // render larger than hitbox
     const dx = x - (DW - w) / 2;
     const dy = y - (DH - h) * 0.55;
+    const flip = facing < 0;
 
-    let spriteName, frame;
+    let seqName, frame;
     if (state === 'attack') {
-      spriteName = 'ninja-attack';
-      frame = Math.floor((1 - p.attackTimer / C.ATTACK_DURATION) * 3);
-    } else if (!p.onGround && p.vy < 0) {
-      spriteName = 'ninja-jump'; frame = 0;
-    } else if (!p.onGround) {
-      spriteName = 'ninja-fall'; frame = 0;
+      seqName = 'ninja-attack1';
+      // sync frames across the attack duration
+      frame = Math.min(7, Math.floor((1 - p.attackTimer / C.ATTACK_DURATION) * 8));
+    } else if (state === 'jump') {
+      if (p.vy < 0) {
+        seqName = 'ninja-jumpup';
+        frame = Math.min(animFrame, 4);   // clamp at last frame while rising
+      } else {
+        seqName = 'ninja-jumpfall';
+        frame = Math.min(animFrame, 4);   // clamp at last frame while falling
+      }
     } else if (state === 'run') {
-      spriteName = 'ninja-run';
-      frame = Math.floor(p.animFrame * 1.5) % 12;
+      seqName = 'ninja-run';
+      frame = animFrame;                  // drawSeq wraps with % totalFrames
     } else {
-      spriteName = 'ninja-idle';
-      frame = Math.floor(p.animFrame * 0.6) % 11;
+      seqName = 'ninja-idle';
+      frame = animFrame;
     }
 
-    if (Sprites.draw(ctx, spriteName, frame, FRAME_W, FRAME_H,
-                     dx, dy, DW, DH, facing < 0)) return;
+    if (Sprites.hasSeq(seqName)) {
+      Sprites.drawSeq(ctx, seqName, frame, dx, dy, DW, DH, flip);
+      return;
+    }
   }
   // ── Fallback: programmatic drawing ───────────────────────────────────────
 
@@ -225,6 +235,7 @@ class Player {
     this.attackTimer = 0;
     this.attackCooldown = 0;
     this.invincible = 0;
+    this.prevState = 'idle';
     this.lives = d.lives;
     this.alive = true;
   }
@@ -385,12 +396,18 @@ class WeaponPickup {
   draw(ctx) {
     const by = Math.sin(this.bobTimer) * 4;
     const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
+
     ctx.save();
-    // Glow halo
     const glowCol = this.type === 'triple' ? '#ff6b35' : this.type === 'knife' ? '#4fc3f7' : '#ffffff';
     ctx.shadowColor = glowCol;
     ctx.shadowBlur  = 10 + Math.sin(this.bobTimer * 2) * 4;
+
     if (this.type === 'shuriken') {
+      if (typeof Sprites !== 'undefined' &&
+          Sprites.drawRotated(ctx, 'weapon-shuriken', cx, cy, 26, 26, this.bobTimer)) {
+        ctx.shadowBlur = 0; ctx.restore(); return;
+      }
+      // Fallback programmatic shuriken
       ctx.fillStyle = '#e0e0e0';
       for (let i = 0; i < 4; i++) {
         ctx.save(); ctx.translate(cx, cy); ctx.rotate(i * Math.PI / 2 + this.bobTimer);
@@ -398,20 +415,37 @@ class WeaponPickup {
         ctx.restore();
       }
     } else if (this.type === 'triple') {
-      ctx.fillStyle = '#ff8c35';
-      [[-7,-3],[7,-3],[0,6]].forEach(([ox, oy]) => {
-        for (let i = 0; i < 4; i++) {
-          ctx.save(); ctx.translate(cx + ox, cy + oy); ctx.rotate(i * Math.PI / 2 + this.bobTimer);
-          ctx.beginPath(); ctx.moveTo(0,-5); ctx.lineTo(2,-2); ctx.lineTo(0,0); ctx.lineTo(-2,-2); ctx.closePath(); ctx.fill();
-          ctx.restore();
-        }
-      });
+      // Three shurikens in a triangle arrangement
+      const offsets = [[-8,-4],[8,-4],[0,8]];
+      let drawn = false;
+      if (typeof Sprites !== 'undefined' && Sprites.has('weapon-shuriken')) {
+        offsets.forEach(([ox, oy]) => {
+          Sprites.drawRotated(ctx, 'weapon-shuriken', cx + ox, cy + oy, 18, 18, this.bobTimer);
+        });
+        drawn = true;
+      }
+      if (!drawn) {
+        ctx.fillStyle = '#ff8c35';
+        offsets.forEach(([ox, oy]) => {
+          for (let i = 0; i < 4; i++) {
+            ctx.save(); ctx.translate(cx + ox, cy + oy); ctx.rotate(i * Math.PI / 2 + this.bobTimer);
+            ctx.beginPath(); ctx.moveTo(0,-5); ctx.lineTo(2,-2); ctx.lineTo(0,0); ctx.lineTo(-2,-2); ctx.closePath(); ctx.fill();
+            ctx.restore();
+          }
+        });
+      }
     } else if (this.type === 'knife') {
+      if (typeof Sprites !== 'undefined' &&
+          Sprites.drawRotated(ctx, 'weapon-kunai', cx, cy, 32, 12, -0.3)) {
+        ctx.shadowBlur = 0; ctx.restore(); return;
+      }
+      // Fallback programmatic knife
       ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.4);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-10, -3, 22, 5);
       ctx.fillStyle = '#c8a83c'; ctx.fillRect(-14, -5, 5, 9);
       ctx.restore();
     }
+
     ctx.shadowBlur = 0;
     ctx.restore();
   }
@@ -441,13 +475,23 @@ class PlayerShuriken {
     if (this.x < -300 || this.x > 8000 || this.y > C.H + 100 || this.y < -100) this.alive = false;
   }
   draw(ctx) {
-    ctx.save();
-    ctx.translate(this.x, this.y);
     if (this.type === 'knife') {
+      const angle = this.vx > 0 ? -0.12 : Math.PI + 0.12;
+      if (typeof Sprites !== 'undefined' &&
+          Sprites.drawRotated(ctx, 'weapon-kunai', this.x, this.y, 28, 10, angle)) return;
+      // Fallback
+      ctx.save();
+      ctx.translate(this.x, this.y);
       ctx.rotate(this.vx > 0 ? 0 : Math.PI);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-11, -3, 23, 6);
       ctx.fillStyle = '#c8a83c'; ctx.fillRect(-15, -5, 5, 10);
+      ctx.restore();
     } else {
+      if (typeof Sprites !== 'undefined' &&
+          Sprites.drawRotated(ctx, 'weapon-shuriken', this.x, this.y, 18, 18, this.rot)) return;
+      // Fallback
+      ctx.save();
+      ctx.translate(this.x, this.y);
       ctx.rotate(this.rot);
       ctx.fillStyle = '#d8d8d8';
       for (let i = 0; i < 4; i++) {
@@ -455,8 +499,8 @@ class PlayerShuriken {
         ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(2.5,-2); ctx.lineTo(0,0); ctx.lineTo(-2.5,-2); ctx.closePath(); ctx.fill();
         ctx.restore();
       }
+      ctx.restore();
     }
-    ctx.restore();
   }
   bounds() {
     if (this.type === 'knife') return { x: this.x - 15, y: this.y - 5, w: 28, h: 10 };

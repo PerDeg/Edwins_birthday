@@ -82,8 +82,9 @@ function updatePlayer(dt) {
   if (p.y > C.H + 100) damagePlayer();
 
   p.state = p.attacking ? 'attack' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
+  if (p.state !== p.prevState) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
   p.animTimer += dt;
-  if (p.animTimer > 0.10) { p.animFrame = (p.animFrame + 1) % 8; p.animTimer = 0; }
+  if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
 }
 
 function damagePlayer() {
