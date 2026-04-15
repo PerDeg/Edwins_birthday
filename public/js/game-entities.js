@@ -243,8 +243,7 @@ class Grunt {
     this.x = px; this.y = platform.y - 48;
     this.w = 28; this.h = 48;
     this.platform = platform;
-    const spd = C.LEVELS[0].enemySpeed; // overridden by caller
-    this.vx = (Math.random() > 0.5 ? 1 : -1) * spd * speedMul;
+    this.vx = (Math.random() > 0.5 ? 1 : -1) * 55 * speedMul;
     this.facing = this.vx > 0 ? 1 : -1;
     this.animFrame = 0;
     this.animTimer = 0;
