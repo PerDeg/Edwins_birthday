@@ -1,9 +1,9 @@
 'use strict';
 
-// ── Canvas & scaling ─────────────────────────────────────────────────────────
+// ── Canvas & scaling ──────────────────────────────────────────────────────────
 const canvas = document.getElementById('game-canvas');
 const ctx    = canvas.getContext('2d');
-let scale = 1, offX = 0, offY = 0;
+let scale = 1;
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -11,12 +11,10 @@ function resize() {
   const sy  = window.innerHeight / C.H;
   scale = Math.min(sx, sy);
   const cw = C.W * scale, ch = C.H * scale;
-  offX = (window.innerWidth  - cw) / 2;
-  offY = (window.innerHeight - ch) / 2;
   canvas.style.width   = cw + 'px';
   canvas.style.height  = ch + 'px';
-  canvas.style.left    = offX + 'px';
-  canvas.style.top     = offY + 'px';
+  canvas.style.left    = (window.innerWidth  - cw) / 2 + 'px';
+  canvas.style.top     = (window.innerHeight - ch) / 2 + 'px';
   canvas.width  = Math.round(cw * dpr);
   canvas.height = Math.round(ch * dpr);
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
@@ -24,518 +22,207 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// ── Input ────────────────────────────────────────────────────────────────────
-const keys = {};
-const prevKeys = {};
+// ── Input ──────────────────────────────────────────────────────────────────────
+const keys = {}, prevKeys = {};
 window.addEventListener('keydown', e => { keys[e.code] = true; });
 window.addEventListener('keyup',   e => { keys[e.code] = false; });
+function keyJustPressed(code) { return !!(keys[code] && !prevKeys[code]); }
 
-function keyJustPressed(code) { return keys[code] && !prevKeys[code]; }
-
-// Touch controls
-['btn-left','btn-right','btn-jump','btn-attack'].forEach(id => {
+['btn-left','btn-right','btn-jump','btn-attack','btn-throw'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
-  const map = { 'btn-left':'ArrowLeft','btn-right':'ArrowRight','btn-jump':'Space','btn-attack':'KeyZ' };
-  el.addEventListener('touchstart', e => { e.preventDefault(); keys[map[id]] = true; }, { passive: false });
-  el.addEventListener('touchend',   e => { e.preventDefault(); keys[map[id]] = false; }, { passive: false });
+  const map = {
+    'btn-left':   'ArrowLeft',
+    'btn-right':  'ArrowRight',
+    'btn-jump':   'Space',
+    'btn-attack': 'KeyZ',
+    'btn-throw':  'KeyX',
+  };
+  el.addEventListener('touchstart', e => { e.preventDefault(); keys[map[id]] = true;  }, { passive:false });
+  el.addEventListener('touchend',   e => { e.preventDefault(); keys[map[id]] = false; }, { passive:false });
 });
 
-// Mouse position in logical coords
 const mouse = { x: 0, y: 0 };
 canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
-  mouse.x = (e.clientX - r.left)  / scale;
-  mouse.y = (e.clientY - r.top)   / scale;
+  mouse.x = (e.clientX - r.left) / scale;
+  mouse.y = (e.clientY - r.top)  / scale;
 });
 canvas.addEventListener('touchmove', e => {
-  const t = e.touches[0];
-  const r = canvas.getBoundingClientRect();
+  const t = e.touches[0], r = canvas.getBoundingClientRect();
   mouse.x = (t.clientX - r.left) / scale;
   mouse.y = (t.clientY - r.top)  / scale;
 }, { passive: true });
 
-// ── Game state ───────────────────────────────────────────────────────────────
-const STATE = { MENU:'menu', PLAYING:'playing', GAMEOVER:'gameover',
-                SUBMIT:'submit', LEADERBOARD:'leaderboard' };
-let gameState = STATE.MENU;
+// ── Game state ─────────────────────────────────────────────────────────────────
+const STATE = {
+  MENU:           'menu',
+  PLAYING:        'playing',
+  GAMEOVER:       'gameover',
+  SUBMIT:         'submit',
+  LEADERBOARD:    'leaderboard',
+  LEVEL_COMPLETE: 'level_complete',
+  VICTORY:        'victory',
+};
+let gameState  = STATE.MENU;
 let difficulty = 'barn';
 
-let player = null;
-let platforms = [], enemies = [], shurikens = [], particles = [], floatingTexts = [], petals = [];
+// ── Entity arrays ──────────────────────────────────────────────────────────────
+let player        = null;
+let platforms     = [], enemies = [], shurikens = [];
+let particles     = [], floatingTexts = [], petals = [];
+let coins         = [], pickups = [], playerShurikens = [], boss = null;
+
+// ── Counters & flags ───────────────────────────────────────────────────────────
 let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
-let screenFlash = 0, nextPlatX = 0, lastLevel = 1;
+let screenFlash      = 0;
+let playerWeapon     = 'sword';   // 'sword'|'shuriken'|'triple'|'knife'
+let throwCooldown    = 0;
+let currentLevelIdx  = 0;
+let bgTheme          = 0;
+let levelWidth       = C.LEVEL_DATA[0].width;
+let levelCompleteTimer = 0;
 
-// Camera
+// ── Camera ─────────────────────────────────────────────────────────────────────
 const cam = { x: 0, shake: 0, shakeDur: 0 };
+function triggerShake(mag, dur) { cam.shake = mag; cam.shakeDur = dur; }
 
-// Score submit
-let submitName = '';
-let submitRank  = null;
-let leaderboard = [];
-let submitDone  = false;
-
-// Name input element overlay
+// ── Score submit ───────────────────────────────────────────────────────────────
+let submitName = '', submitRank = null, leaderboard = [], submitDone = false;
 const nameInput = document.getElementById('name-input');
 const nameForm  = document.getElementById('name-form');
 
-// ── Init / reset ─────────────────────────────────────────────────────────────
-function initGame(diff) {
-  difficulty = diff;
-  Audio.start();
-  HUD.reset();
-  UI.triggerLevelUp && (UI._levelUpTimer = 0);
+// ── Loop timestamp ─────────────────────────────────────────────────────────────
+let lastTime = 0;
 
-  player       = new Player(difficulty);
-  platforms    = [];
-  enemies      = [];
-  shurikens    = [];
-  particles    = [];
-  floatingTexts= [];
-  petals       = Array.from({ length: 25 }, () => new SakuraPetal());
+// ── UI Interaction ─────────────────────────────────────────────────────────────
+function handleClick() {
+  const b = {
+    barn:      { x: C.W * 0.5 - 100, y: C.H * 0.5 + 42, w: 160, h: 46 },
+    vuxen:     { x: C.W * 0.5 + 100, y: C.H * 0.5 + 42, w: 160, h: 46 },
+    submit:    { x: C.W * 0.5, y: C.H * 0.5 + 58, w: 230, h: 50 },
+    restart:   { x: C.W * 0.5, y: C.H * 0.5 + 122, w: 180, h: 42 },
+    leaderboardBtn: { x: C.W * 0.5, y: C.H * 0.5 + 74, w: 220, h: 42 },
+    levelNext: { x: C.W * 0.5, y: C.H * 0.5 + 80, w: 140, h: 40 },
+  };
 
-  score      = 0;
-  combo      = 1;
-  comboTimer = 0;
-  lives      = C.DIFF[difficulty].lives;
-  level      = 1;
-  kills      = 0;
-  screenFlash= 0;
-  nextPlatX  = 280;
-  lastLevel  = 1;
+  for (const [key, box] of Object.entries(b)) {
+    const inBox = mouse.x >= box.x - box.w/2 && mouse.x <= box.x + box.w/2 &&
+                  mouse.y >= box.y - box.h/2 && mouse.y <= box.y + box.h/2;
 
-  cam.x = 0; cam.shake = 0; cam.shakeDur = 0;
+    if (!inBox) continue;
 
-  // Guaranteed first platform right in view so player has somewhere to jump
-  platforms.push({ x: 120, y: 370, w: 220, h: 14 });
-
-  // Procedural platforms from nextPlatX onward
-  spawnStartPlatforms();
-
-  gameState = STATE.PLAYING;
-}
-
-function spawnStartPlatforms() {
-  // A few starter platforms near the player
-  for (let i = 0; i < 5; i++) {
-    spawnPlatform();
-  }
-}
-
-// ── Platform generation ───────────────────────────────────────────────────────
-function spawnPlatform() {
-  const lvlCfg  = C.LEVELS[Math.min(level - 1, C.LEVELS.length - 1)];
-  const gap      = lvlCfg.gapMin + Math.random() * C.PLATFORM_GAP_EXTRA;
-  const w        = C.PLATFORM_W_MIN + Math.random() * (C.PLATFORM_W_MAX - C.PLATFORM_W_MIN);
-  const y        = C.H * C.PLATFORM_Y_MIN + Math.random() * C.H * (C.PLATFORM_Y_MAX - C.PLATFORM_Y_MIN);
-  const x        = nextPlatX;
-  nextPlatX     += w + gap;
-
-  const plat = { x, y, w, h: 14 };
-  platforms.push(plat);
-
-  // Spawn enemy?
-  const diff    = C.DIFF[difficulty];
-  const speedMul = diff.speedMul;
-  const shootMul = diff.shootMul;
-  const lvlSpd   = lvlCfg.enemySpeed;
-  const shootInt = lvlCfg.archerInterval * shootMul;
-
-  if (Math.random() < lvlCfg.enemyRate) {
-    if (level >= 2 && Math.random() < 0.3) {
-      enemies.push(new Archer(x + w * 0.3, plat, speedMul, shootInt));
-    } else {
-      const g = new Grunt(x + w * 0.2, plat, speedMul);
-      g.vx = (Math.random() > 0.5 ? 1 : -1) * lvlSpd * speedMul;
-      enemies.push(g);
+    if (key === 'barn' && gameState === STATE.MENU) {
+      difficulty = 'barn';
+      gOverSubmitShown = false;
+      victorySubmitShown = false;
+      initGame(difficulty);
+    } else if (key === 'vuxen' && gameState === STATE.MENU) {
+      difficulty = 'vuxen';
+      gOverSubmitShown = false;
+      victorySubmitShown = false;
+      initGame(difficulty);
+    } else if (key === 'submit' && (gameState === STATE.SUBMIT || gameState === STATE.VICTORY)) {
+      finishSubmit();
+    } else if (key === 'restart' && (gameState === STATE.SUBMIT || gameState === STATE.LEADERBOARD || gameState === STATE.VICTORY)) {
+      gOverSubmitShown = false;
+      victorySubmitShown = false;
+      gameState = STATE.MENU;
+    } else if (key === 'leaderboardBtn' && gameState === STATE.SUBMIT) {
+      fetchLeaderboard();
+      gameState = STATE.LEADERBOARD;
+    } else if (key === 'levelNext' && gameState === STATE.LEVEL_COMPLETE) {
+      advanceNextLevel();
     }
   }
 }
 
-// ── Camera ────────────────────────────────────────────────────────────────────
-function updateCamera(dt) {
-  const target = player.x - C.W * 0.35;
-  cam.x += (target - cam.x) * Math.min(dt * 8, 1);
-  cam.x  = Math.max(0, cam.x);
-
-  if (cam.shakeDur > 0) {
-    cam.shakeDur -= dt;
-    cam.shake = cam.shakeDur > 0 ? (Math.random() - 0.5) * 14 : 0;
-  }
+function startSubmit() {
+  gameState = STATE.SUBMIT;
+  submitName = '';
+  submitRank = null;
+  submitDone = false;
+  if (nameInput) nameInput.value = '';
+  if (nameInput) nameInput.focus();
 }
 
-function triggerShake(mag, dur) { cam.shake = mag; cam.shakeDur = dur; }
-
-// ── Platform collision ────────────────────────────────────────────────────────
-function platformCollision(entity) {
-  // Check elevated platforms first
-  let onPlat = false;
-  for (const p of platforms) {
-    const prevBottom = entity.y + entity.h - entity.vy * (1/60); // approx prev
-    const curBottom  = entity.y + entity.h;
-    if (entity.vy >= 0 &&
-        curBottom  >= p.y && curBottom  <= p.y + p.h + 12 &&
-        entity.x + entity.w > p.x + 4 && entity.x < p.x + p.w - 4) {
-      entity.y  = p.y - entity.h;
-      entity.vy = 0;
-      onPlat = true;
-      if (entity === player) { player.onGround = true; player.jumpsLeft = 2; }
-      break;
-    }
-  }
-  // Ground
-  if (entity.y + entity.h >= C.GROUND_Y) {
-    entity.y  = C.GROUND_Y - entity.h;
-    entity.vy = 0;
-    if (entity === player) { player.onGround = true; player.jumpsLeft = 2; }
-    onPlat = true;
-  }
-  return onPlat;
+function finishSubmit() {
+  if (!submitName.trim()) return;
+  const payload = {
+    name: submitName.trim(),
+    score: score,
+    difficulty: difficulty,
+    level: level,
+    kills: kills,
+  };
+  fetch('/api/scores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(d => {
+      submitRank = d.rank;
+      submitDone = true;
+    })
+    .catch(e => console.error('Score submit error:', e));
 }
 
-// ── Player update ─────────────────────────────────────────────────────────────
-function updatePlayer(dt) {
-  const p = player;
-
-  // Horizontal
-  const left  = keys['ArrowLeft']  || keys['KeyA'];
-  const right = keys['ArrowRight'] || keys['KeyD'];
-  p.vx = right ? C.PLAYER_SPEED : left ? -C.PLAYER_SPEED : 0;
-  if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
-
-  // Jump (edge-detect)
-  const jumpPressed = keyJustPressed('Space') || keyJustPressed('ArrowUp') || keyJustPressed('KeyW');
-  if (jumpPressed && p.jumpsLeft > 0) {
-    const wasDouble = p.jumpsLeft === 1;
-    p.vy = C.JUMP_V;
-    p.jumpsLeft--;
-    if (wasDouble) { emitDoubleJump(particles, p.x + p.w/2, p.y + p.h); Audio.djump(); }
-    else Audio.jump();
-  }
-
-  // Attack
-  const attackPressed = keyJustPressed('KeyZ') || keyJustPressed('ControlLeft') || keyJustPressed('ControlRight');
-  if (attackPressed && p.attackCooldown <= 0) {
-    p.attacking = true;
-    p.attackTimer = C.ATTACK_DURATION;
-    p.attackCooldown = 0.35;
-    emitSwordSlash(particles, p.x + (p.facing > 0 ? p.w + 10 : -10), p.y + p.h * 0.35, p.facing);
-    Audio.slash();
-  }
-  if (p.attackTimer > 0)    { p.attackTimer    -= dt; if (p.attackTimer <= 0) { p.attacking = false; } }
-  if (p.attackCooldown > 0)   p.attackCooldown -= dt;
-  if (p.invincible > 0)       p.invincible     -= dt;
-
-  // Gravity
-  p.onGround = false;
-  p.vy += C.GRAVITY * dt;
-  p.x  += p.vx * dt;
-  p.y  += p.vy * dt;
-
-  platformCollision(p);
-
-  // Kill-plane
-  if (p.y > C.H + 100) damagePlayer();
-
-  // Animation
-  p.state = p.attacking ? 'attack' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
-  p.animTimer += dt;
-  if (p.animTimer > 0.10) { p.animFrame = (p.animFrame + 1) % 8; p.animTimer = 0; }
-
-  // Generate more platforms ahead
-  while (nextPlatX < cam.x + C.W + 600) spawnPlatform();
-
-  // Remove old platforms far behind
-  platforms = platforms.filter(pl => pl.x + pl.w > cam.x - 400);
+function fetchLeaderboard() {
+  fetch('/api/scores')
+    .then(r => r.json())
+    .then(d => { leaderboard = d; })
+    .catch(e => console.error('Leaderboard fetch error:', e));
 }
 
-function damagePlayer() {
-  if (player.invincible > 0) return;
-  lives--;
-  player.invincible = C.INVINCIBLE_TIME;
-  screenFlash = 1;
-  triggerShake(10, 0.35);
-  emitHit(particles, player.x + player.w/2, player.y + player.h/2);
-  Audio.hit();
-  if (lives <= 0) {
-    gameState = STATE.GAMEOVER;
-    Audio.stop();
+// ── Main Game Loop ─────────────────────────────────────────────────────────────
+let gOverSubmitShown = false, victorySubmitShown = false;
+function loop(now) {
+  const dt = lastTime === 0 ? 0 : Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  update(dt);
+  draw(dt);
+
+  if (gameState === STATE.LEVEL_COMPLETE && levelCompleteTimer <= 0) {
+    advanceNextLevel();
   }
-}
-
-// ── Enemy update ──────────────────────────────────────────────────────────────
-function updateEnemies(dt) {
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    if (e.type === 'grunt') {
-      e.update(dt);
-    } else {
-      e.update(dt, player, shurikens);
-    }
-
-    // Check player attack vs enemy
-    if (player.attackActive) {
-      const hb = player.attackHitbox();
-      if (rectsOverlap(hb, e.bounds())) {
-        if (e.type === 'archer') {
-          e.hits++;
-          if (e.hits < 2) { emitHit(particles, e.x + e.w/2, e.y + e.h/2); return; }
-        }
-        killEnemy(e);
-      }
-    }
-
-    // Check enemy body vs player
-    if (player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) {
-      damagePlayer();
-    }
+  if (gameState === STATE.GAMEOVER && !gOverSubmitShown) {
+    gOverSubmitShown = true;
+    startSubmit();
   }
-  enemies = enemies.filter(e => e.alive);
-}
-
-function killEnemy(e) {
-  e.alive = false;
-  kills++;
-  combo = Math.min(combo + 1, C.MAX_COMBO);
-  comboTimer = C.COMBO_TIMEOUT;
-  const pts = 10 * combo;
-  score += pts;
-  emitEnemyDeath(particles, e.x + e.w/2, e.y + e.h/2);
-  floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 10, `+${pts}`, C.COL_GOLD, 1 + combo * 0.15));
-  if (combo > 1) floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 32, `×${combo}!`, '#ff6b35', 1.3));
-  Audio.defeat();
-  checkLevelUp();
-}
-
-// ── Shurikens ─────────────────────────────────────────────────────────────────
-function updateShurikens(dt) {
-  for (const s of shurikens) {
-    s.update(dt, cam.x);
-    if (s.alive && player.invincible <= 0 && rectsOverlap(player.bounds(), s.bounds())) {
-      s.alive = false;
-      damagePlayer();
-    }
-  }
-  shurikens = shurikens.filter(s => s.alive);
-}
-
-// ── Level progression ─────────────────────────────────────────────────────────
-function checkLevelUp() {
-  const newLevel = Math.min(Math.floor(score / C.POINTS_PER_LEVEL) + 1, C.MAX_LEVEL);
-  if (newLevel > level) {
-    level = newLevel;
-    UI.triggerLevelUp();
-    triggerShake(16, 0.5);
-    Audio.levelUp();
-  }
-}
-
-// ── Combo decay ───────────────────────────────────────────────────────────────
-function updateCombo(dt) {
-  if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) combo = 1; }
-}
-
-// ── Main UPDATE ───────────────────────────────────────────────────────────────
-function update(dt) {
-  if (gameState !== STATE.PLAYING) return;
-
-  updatePlayer(dt);
-  updateEnemies(dt);
-  updateShurikens(dt);
-  updateCamera(dt);
-  updateCombo(dt);
-
-  // Particles
-  for (const p of particles)    p.update(dt);
-  for (const t of floatingTexts) t.update(dt);
-  for (const p of petals)        p.update(dt);
-
-  particles     = particles.filter(p => p.alive);
-  floatingTexts = floatingTexts.filter(t => t.alive);
-
-  // Screen flash decay
-  screenFlash = Math.max(0, screenFlash - dt * 3.5);
-}
-
-// ── Platform drawing ──────────────────────────────────────────────────────────
-function drawPlatform(ctx, p) {
-  const TILE = 16; // terrain tile size in source image
-  // Try sprite tiles (terrain.png row 0 = grass top, row 1 = dirt fill)
-  if (typeof Sprites !== 'undefined' && Sprites.has('terrain')) {
-    const cols = Math.ceil(p.w / p.h);
-    const tw = p.w / cols;
-    for (let i = 0; i < cols; i++) {
-      const tx = i === 0 ? 0 : (i === cols - 1 ? 2 : 1); // left / mid / right tile col
-      Sprites.drawTile(ctx, tx, 0, TILE, p.x + i * tw, p.y, tw + 1, p.h);
-    }
-    return;
-  }
-  // Fallback: styled gradient platform
-  const grad = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
-  grad.addColorStop(0,   '#5a7a2a');
-  grad.addColorStop(0.3, '#3a5a1a');
-  grad.addColorStop(1,   '#2a3a14');
-  ctx.fillStyle = grad;
-  ctx.fillRect(p.x, p.y, p.w, p.h);
-  // Bright top edge
-  ctx.fillStyle = '#8aba3a';
-  ctx.fillRect(p.x, p.y, p.w, 3);
-  // Subtle shadow bottom
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
-}
-
-// ── DRAW ──────────────────────────────────────────────────────────────────────
-function draw(dt) {
-  ctx.clearRect(0, 0, C.W, C.H);
-
-  // ── Background layers ──
-  Background.drawSky(ctx);
-  Background.drawMountains(ctx, cam.x);
-  Background.drawSilhouettes(ctx, cam.x);
-
-  // ── World-space transform (camera + shake) ──
-  ctx.save();
-  ctx.translate(-cam.x + cam.shake, cam.shake * 0.4);
-
-  // Ground
-  Background.drawGround(ctx, cam.x);
-
-  // Platforms
-  for (const p of platforms) {
-    if (p.x + p.w < cam.x - 20 || p.x > cam.x + C.W + 20) continue;
-    drawPlatform(ctx, p);
+  if (gameState === STATE.VICTORY && !victorySubmitShown) {
+    victorySubmitShown = true;
+    startSubmit();
   }
 
-  // Particles (world-space)
-  for (const p of particles) p.draw(ctx);
-
-  // Enemies
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    if (e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
-    e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
-  }
-
-  // Shurikens
-  for (const s of shurikens) drawShuriken(ctx, s.x, s.y, s.rot);
-
-  // Player
-  if (player) drawNinjaPlayer(ctx, player);
-
-  // Floating texts (world-space)
-  for (const t of floatingTexts) t.draw(ctx, cam.x);
-
-  ctx.restore(); // end world-space
-
-  // ── Screen-space ──
-  // Sakura petals
-  for (const p of petals) p.draw(ctx);
-
-  // HUD
-  if (gameState === STATE.PLAYING) {
-    HUD.draw(ctx, { lives, score, level, combo, difficulty });
-  }
-
-  // Screen flash
-  UI.drawHitFlash(ctx, screenFlash);
-
-  // Level-up overlay
-  UI.drawLevelUp(ctx, dt, level);
+  Object.assign(prevKeys, keys);
+  requestAnimationFrame(loop);
 }
 
-// ── Click / tap handler ───────────────────────────────────────────────────────
-let lastClickHandled = false;
+// ── Startup ────────────────────────────────────────────────────────────────────
 canvas.addEventListener('click', e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / scale;
   mouse.y = (e.clientY - r.top)  / scale;
   handleClick();
 });
+
 canvas.addEventListener('touchend', e => {
-  const t = e.changedTouches[0];
-  const r = canvas.getBoundingClientRect();
-  mouse.x = (t.clientX - r.left) / scale;
-  mouse.y = (t.clientY - r.top)  / scale;
-  handleClick();
-}, { passive: true });
-
-function handleClick() {
-  if (gameState === STATE.MENU) {
-    const { hoverBarn, hoverVuxen } = UI.drawMenu(ctx, 0, mouse);
-    if (hoverBarn)  initGame('barn');
-    if (hoverVuxen) initGame('vuxen');
-  } else if (gameState === STATE.GAMEOVER) {
-    const { hoverSubmit, hoverRestart } = UI.drawGameOver(ctx, score, kills, level, mouse);
-    if (hoverSubmit)  startSubmit();
-    if (hoverRestart) initGame(difficulty);
-  } else if (gameState === STATE.LEADERBOARD) {
-    const { hoverBack } = UI.drawLeaderboard(ctx, leaderboard, submitRank, mouse);
-    if (hoverBack) initGame(difficulty);
+  if (e.touches.length === 0) {
+    const t = e.changedTouches[0], r = canvas.getBoundingClientRect();
+    mouse.x = (t.clientX - r.left) / scale;
+    mouse.y = (t.clientY - r.top)  / scale;
+    handleClick();
   }
-}
-
-// ── Score submission ──────────────────────────────────────────────────────────
-function startSubmit() {
-  gameState = STATE.SUBMIT;
-  submitName = '';
-  submitDone = false;
-  if (nameForm) {
-    nameForm.style.display = 'flex';
-    if (nameInput) nameInput.value = '';
-    nameInput && nameInput.focus();
-  }
-}
-
-function finishSubmit(name) {
-  if (nameForm) nameForm.style.display = 'none';
-  submitName = name.trim() || 'Ninja';
-  fetch('/api/scores', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: submitName, score, difficulty, level, kills })
-  })
-    .then(r => r.json())
-    .then(d => { submitRank = d.rank || null; })
-    .catch(() => { submitRank = null; })
-    .finally(() => {
-      fetch('/api/scores').then(r => r.json()).then(rows => { leaderboard = rows; })
-        .catch(() => { leaderboard = []; })
-        .finally(() => { gameState = STATE.LEADERBOARD; });
-    });
-}
+});
 
 if (nameForm) {
   nameForm.addEventListener('submit', e => {
     e.preventDefault();
-    finishSubmit(nameInput ? nameInput.value : '');
+    if (nameInput) submitName = nameInput.value;
+    finishSubmit();
   });
 }
 
-// ── Main loop ─────────────────────────────────────────────────────────────────
-let lastTime = 0;
-
-function loop(ts) {
-  const dt = Math.min((ts - lastTime) / 1000, 0.05);
-  lastTime = ts;
-
-  update(dt);
-  draw(dt);
-
-  // Overlay screens
-  if (gameState === STATE.MENU)        UI.drawMenu(ctx, dt, mouse);
-  if (gameState === STATE.GAMEOVER)    UI.drawGameOver(ctx, score, kills, level, mouse);
-  if (gameState === STATE.SUBMIT)      UI.drawScoreSubmit(ctx);
-  if (gameState === STATE.LEADERBOARD) UI.drawLeaderboard(ctx, leaderboard, submitRank, mouse);
-
-  // Copy current keys to prev
-  Object.keys(keys).forEach(k => { prevKeys[k] = keys[k]; });
-
-  requestAnimationFrame(loop);
-}
-
-// Preload sprites then start — game works fine even if sprites fail to load
-(typeof Sprites !== 'undefined' ? Sprites.load() : Promise.resolve())
+// Preload sprites and start loop
+Promise.resolve(typeof Sprites !== 'undefined' && Sprites.load ? Sprites.load() : undefined)
   .finally(() => {
-    requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(loop); });
+    requestAnimationFrame(loop);
   });

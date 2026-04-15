@@ -83,7 +83,7 @@ class FloatingText {
     this.y -= 38 * dt;
     if (this.age >= this.lifetime) this.alive = false;
   }
-  draw(ctx, camX) {
+  draw(ctx) {
     const t = this.age / this.lifetime;
     const alpha = t < 0.65 ? 1 : 1 - (t - 0.65) / 0.35;
     ctx.globalAlpha = alpha;
@@ -91,7 +91,7 @@ class FloatingText {
     const sz = Math.round(16 * this.scale);
     ctx.font = `bold ${sz}px system-ui`;
     ctx.textAlign = 'center';
-    ctx.fillText(this.text, this.x - camX, this.y);
+    ctx.fillText(this.text, this.x, this.y);   // world-space: no camX subtraction needed
     ctx.globalAlpha = 1;
   }
 }
