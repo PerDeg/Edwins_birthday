@@ -30,7 +30,7 @@ function drawNinjaPlayer(ctx, p) {
     const DW = w * 2.8, DH = h * 1.85;   // render larger than hitbox
     const dx = x - (DW - w) / 2;
     const dy = y - (DH - h) * 0.55;
-    const flip = facing < 0;
+    const flip = facing > 0;  // sprites face left by default, flip when facing right
 
     let seqName, frame;
     if (state === 'attack') {
