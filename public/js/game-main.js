@@ -6,9 +6,11 @@ const ctx    = canvas.getContext('2d');
 let scale = 1;
 
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr    = window.devicePixelRatio || 1;
+  // On touch devices, reserve space for the on-screen controls at the bottom
+  const touchH = window.matchMedia('(pointer: coarse)').matches ? 164 : 0;
   const sx  = window.innerWidth  / C.W;
-  const sy  = window.innerHeight / C.H;
+  const sy  = (window.innerHeight - touchH) / C.H;
   scale = Math.min(sx, sy);
   const cw = C.W * scale, ch = C.H * scale;
   canvas.style.width   = cw + 'px';
@@ -265,6 +267,28 @@ document.getElementById('btn-start-game')?.addEventListener('touchend', e => {
 }, { passive: false });
 
 // ── Startup ───────────────────────────────────────────────────────────────────
+
+// Fetch levels saved via the editor and merge into C.LEVEL_DATA
+async function _loadLevelsFromDB() {
+  try {
+    const resp = await fetch('/api/levels');
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    rows.forEach(r => {
+      if (typeof r.idx !== 'number' || !r.data) return;
+      if (r.idx < C.LEVEL_DATA.length) {
+        Object.assign(C.LEVEL_DATA[r.idx], r.data);
+      } else {
+        while (C.LEVEL_DATA.length <= r.idx) C.LEVEL_DATA.push(null);
+        C.LEVEL_DATA[r.idx] = r.data;
+      }
+    });
+    if (rows.length) console.log(`Loaded ${rows.length} level(s) from DB`);
+  } catch (_) { /* silently fall back to built-in levels */ }
+}
+
 _showMenu();   // show menu overlay immediately
-Promise.resolve(typeof Sprites !== 'undefined' && Sprites.load ? Sprites.load() : undefined)
-  .finally(() => { requestAnimationFrame(loop); });
+Promise.all([
+  typeof Sprites !== 'undefined' && Sprites.load ? Sprites.load() : Promise.resolve(),
+  _loadLevelsFromDB(),
+]).finally(() => { requestAnimationFrame(loop); });

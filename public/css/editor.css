@@ -1,0 +1,356 @@
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0d0d14;
+  --panel:     #14141f;
+  --border:    #2a2a3a;
+  --gold:      #c8a83c;
+  --red:       #e63946;
+  --blue:      #4fc3f7;
+  --text:      #e8e4d8;
+  --text-dim:  #888;
+  --plat-top:  #6daa30;
+  --plat-body: #3a5a1a;
+  --grunt-col: #b02020;
+  --archer-col:#2040b0;
+  --boss-col:  #8800bb;
+  --coin-col:  #c8a83c;
+  --heart-col: #e63946;
+  --shu-col:   #c0c0d8;
+  --tri-col:   #ff6b35;
+  --knife-col: #4fc3f7;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────────────── */
+#editor-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+#editor-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: #0a0a12;
+  border-bottom: 2px solid var(--gold);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+
+.editor-title {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+#header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hdr-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.hdr-label input,
+.hdr-label select {
+  background: #1e1e2e;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.hdr-label input[type="number"] { width: 72px; }
+.hdr-label input[type="text"]   { width: 130px; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn-hdr, .tool-btn, #btn-prop-delete {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 4px 10px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-hdr { background: #1e1e2e; color: var(--text); }
+.btn-hdr:hover { background: #2a2a3e; }
+
+.btn-pri  { background: #1a3a1a; border-color: var(--plat-top) !important; color: #9afa50; }
+.btn-pri:hover  { background: #1e4a1e; }
+
+.btn-sec  { background: #1a1a2e; color: var(--blue); border-color: var(--blue) !important; }
+.btn-sec:hover  { background: #1e1e3e; }
+
+.btn-danger { background: #2e1a1a; color: var(--red); border-color: var(--red) !important; }
+.btn-danger:hover { background: #3e1e1e; }
+
+/* ── Main area ────────────────────────────────────────────────────────────── */
+#editor-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── Toolbox ──────────────────────────────────────────────────────────────── */
+#toolbox {
+  width: 110px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-group { display: flex; flex-direction: column; gap: 3px; }
+.tool-group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.tool-btn {
+  background: #1e1e2e;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 4px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 100%;
+}
+.tool-btn:hover  { background: #2a2a3e; border-color: #555; }
+.tool-btn.active { background: #2a1e3e; border-color: var(--gold); color: var(--gold); }
+
+/* Per-tool accent colours */
+.t-grunt.active   { border-color: var(--grunt-col); color: var(--grunt-col); }
+.t-archer.active  { border-color: var(--archer-col); color: var(--archer-col); }
+.t-boss.active    { border-color: var(--boss-col); color: var(--boss-col); }
+.t-coin.active    { border-color: var(--coin-col); color: var(--coin-col); }
+.t-heart.active   { border-color: var(--heart-col); color: var(--heart-col); }
+.t-shuriken.active{ border-color: var(--shu-col); color: var(--shu-col); }
+.t-triple.active  { border-color: var(--tri-col); color: var(--tri-col); }
+.t-knife.active   { border-color: var(--knife-col); color: var(--knife-col); }
+
+#tool-hint-box {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+#tool-hint {
+  color: var(--blue);
+  font-size: 10px;
+  line-height: 1.4;
+  min-height: 28px;
+  margin-bottom: 6px;
+}
+#key-hints {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.7;
+}
+#key-hints b { color: var(--text); }
+
+/* ── Canvas area ──────────────────────────────────────────────────────────── */
+#canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+#canvas-container {
+  position: relative;
+  border: 2px solid var(--border);
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+#editor-canvas {
+  display: block;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+
+#canvas-overlay-info {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  display: flex;
+  gap: 14px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  pointer-events: none;
+  user-select: none;
+}
+
+#scroll-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  width: 960px;
+  max-width: 100%;
+}
+.scroll-lbl { color: var(--text-dim); font-size: 11px; }
+
+#scrollbar {
+  flex: 1;
+  accent-color: var(--gold);
+}
+#view-range-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+/* ── Properties panel ─────────────────────────────────────────────────────── */
+#props-panel {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#props-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 38px;
+}
+
+#props-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#btn-prop-delete {
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+#props-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+#props-hint {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Props form */
+.prop-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+.prop-row label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.prop-row input[type="number"],
+.prop-row input[type="text"],
+.prop-row select {
+  background: #1e1e2e;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  width: 100%;
+}
+.prop-row input:focus,
+.prop-row select:focus {
+  outline: 1px solid var(--gold);
+  border-color: var(--gold);
+}
+
+.prop-radio-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.prop-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
+}
+.prop-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+  margin-bottom: 8px;
+}
+
+/* ── Status bar ───────────────────────────────────────────────────────────── */
+#status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: #0a0a12;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 28px;
+  font-size: 11px;
+}
+#status-msg   { color: var(--text); }
+#item-counts  { color: var(--text-dim); }

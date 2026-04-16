@@ -53,6 +53,54 @@ app.post('/api/rsvp', async (req, res) => {
   }
 });
 
+// GET /api/levels — all saved levels (public, used by game + editor to load)
+app.get('/api/levels', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT idx, name, data FROM levels ORDER BY idx ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Levels fetch error:', err);
+    res.status(500).json({ error: 'Serverfel.' });
+  }
+});
+
+// PUT /api/admin/levels/:idx — upsert a level (editor save)
+app.put('/api/admin/levels/:idx', requireAdmin, async (req, res) => {
+  const idx = parseInt(req.params.idx, 10);
+  if (isNaN(idx) || idx < 0 || idx > 99) {
+    return res.status(400).json({ error: 'Ogiltigt level-index.' });
+  }
+  const name = sanitizeText(req.body.name || '', 60) || '';
+  const data = req.body.data;
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ error: 'data saknas.' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO levels (idx, name, data) VALUES ($1, $2, $3)
+       ON CONFLICT (idx) DO UPDATE SET name = $2, data = $3, updated_at = NOW()`,
+      [idx, name, JSON.stringify(data)]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Level save error:', err);
+    res.status(500).json({ error: 'Serverfel.' });
+  }
+});
+
+// DELETE /api/admin/levels/:idx — remove a saved level (resets to built-in)
+app.delete('/api/admin/levels/:idx', requireAdmin, async (req, res) => {
+  const idx = parseInt(req.params.idx, 10);
+  if (isNaN(idx)) return res.status(400).json({ error: 'Ogiltigt index.' });
+  try {
+    await pool.query('DELETE FROM levels WHERE idx = $1', [idx]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Level delete error:', err);
+    res.status(500).json({ error: 'Serverfel.' });
+  }
+});
+
 // GET /api/scores — top 10 leaderboard
 app.get('/api/scores', async (req, res) => {
   try {

@@ -29,6 +29,14 @@ async function initDb() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS levels (
+          idx        INTEGER PRIMARY KEY,
+          name       TEXT NOT NULL DEFAULT '',
+          data       JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
       console.log('Database initialized successfully.');
       return;
     } catch (err) {

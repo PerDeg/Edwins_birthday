@@ -23,7 +23,7 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 140px;
+  height: 160px;
   display: none;
   pointer-events: none;
   z-index: 10;
@@ -36,24 +36,34 @@ body {
 .touch-btn {
   position: absolute;
   pointer-events: all;
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.13);
+  border: 2px solid rgba(255,255,255,0.28);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
-  color: rgba(255,255,255,0.7);
+  font-size: 1.6rem;
+  color: rgba(255,255,255,0.75);
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
 
-#btn-left  { width: 64px; height: 64px; bottom: 50px; left: 20px; }
-#btn-right { width: 64px; height: 64px; bottom: 50px; left: 96px; }
-#btn-jump  { width: 72px; height: 72px; bottom: 45px; right: 20px; background: rgba(200,168,60,0.2); border-color: rgba(200,168,60,0.5); }
-#btn-attack{ width: 58px; height: 58px; bottom: 55px; right: 104px; background: rgba(230,57,70,0.2); border-color: rgba(230,57,70,0.4); }
-#btn-throw { width: 56px; height: 56px; bottom: 115px; right: 104px; background: rgba(79,195,247,0.2); border-color: rgba(79,195,247,0.4); }
+/* Base sizes (phones ~375px wide) */
+#btn-left  { width: 76px; height: 76px; bottom: 60px; left: 16px; }
+#btn-right { width: 76px; height: 76px; bottom: 60px; left: 104px; }
+#btn-jump  { width: 84px; height: 84px; bottom: 55px; right: 16px;  background: rgba(200,168,60,0.22); border-color: rgba(200,168,60,0.55); }
+#btn-attack{ width: 70px; height: 70px; bottom: 68px; right: 112px; background: rgba(230,57,70,0.22);  border-color: rgba(230,57,70,0.50); }
+#btn-throw { width: 64px; height: 64px; bottom: 140px;right: 112px; background: rgba(79,195,247,0.22); border-color: rgba(79,195,247,0.50); }
+
+/* Larger screens (tablets / landscape phones) */
+@media (min-width: 600px) and (pointer: coarse) {
+  #btn-left  { width: 88px; height: 88px; bottom: 64px; left: 24px; }
+  #btn-right { width: 88px; height: 88px; bottom: 64px; left: 124px; }
+  #btn-jump  { width: 96px; height: 96px; bottom: 60px; right: 24px; }
+  #btn-attack{ width: 80px; height: 80px; bottom: 76px; right: 132px; }
+  #btn-throw { width: 72px; height: 72px; bottom: 158px;right: 132px; }
+}
 
 /* ── Score / name-entry overlay ─────────────────────────────────────────────── */
 #submit-overlay {

@@ -43,32 +43,60 @@ function loadLevel(idx) {
   const speedBase = ld.enemySpeedBase;
   const shootInt  = ld.archerInterval * C.SHOOT_MUL;
 
-  ld.enemies.forEach(e => {
-    const plat = platforms[e.platIdx];
-    if (!plat) return;
-    const ex = plat.x + plat.w * 0.35;
-    if (e.type === 'grunt') {
-      const g = new Grunt(ex, plat, C.ENEMY_SPEED_MUL);
-      g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
-      enemies.push(g);
-    } else {
-      enemies.push(new Archer(ex, plat, C.ENEMY_SPEED_MUL, shootInt));
-    }
-  });
+  // Detect format: flat (editor/DB) uses {x, ground} on enemies; old format uses {platIdx}
+  const isFlatFormat = ld.enemies.length === 0 || ('ground' in ld.enemies[0]);
 
-  // Spawn ground-level grunts on virtual ground-platform segments
-  if (ld.groundEnemies) {
-    ld.groundEnemies.forEach(e => {
-      const groundPlat = { x: e.x, y: C.GROUND_Y, w: e.range, h: 14 };
-      const ex = e.x + e.range * 0.35;
-      const g = new Grunt(ex, groundPlat, C.ENEMY_SPEED_MUL);
-      g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
-      enemies.push(g);
+  if (isFlatFormat) {
+    // ── Flat format (editor / DB) ─────────────────────────────────────────────
+    ld.enemies.forEach(e => {
+      if (e.ground) {
+        const range     = e.range || 200;
+        const groundPlat = { x: e.x - range / 2, y: C.GROUND_Y, w: range, h: 14 };
+        const g = new Grunt(e.x, groundPlat, C.ENEMY_SPEED_MUL);
+        g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+        enemies.push(g);
+      } else {
+        // Find the platform this enemy sits on (by x overlap)
+        const plat = platforms.find(p => e.x >= p.x - 4 && e.x <= p.x + p.w + 4);
+        if (!plat) return;
+        if (e.type === 'grunt') {
+          const g = new Grunt(e.x, plat, C.ENEMY_SPEED_MUL);
+          g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+          enemies.push(g);
+        } else {
+          enemies.push(new Archer(e.x, plat, C.ENEMY_SPEED_MUL, shootInt));
+        }
+      }
     });
+  } else {
+    // ── Old platIdx format (hardcoded C.LEVEL_DATA) ───────────────────────────
+    ld.enemies.forEach(e => {
+      const plat = platforms[e.platIdx];
+      if (!plat) return;
+      const ex = plat.x + plat.w * 0.35;
+      if (e.type === 'grunt') {
+        const g = new Grunt(ex, plat, C.ENEMY_SPEED_MUL);
+        g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+        enemies.push(g);
+      } else {
+        enemies.push(new Archer(ex, plat, C.ENEMY_SPEED_MUL, shootInt));
+      }
+    });
+    // Old format ground enemies (separate array)
+    if (ld.groundEnemies) {
+      ld.groundEnemies.forEach(e => {
+        const groundPlat = { x: e.x, y: C.GROUND_Y, w: e.range, h: 14 };
+        const ex = e.x + e.range * 0.35;
+        const g = new Grunt(ex, groundPlat, C.ENEMY_SPEED_MUL);
+        g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+        enemies.push(g);
+      });
+    }
   }
 
   const bd       = ld.boss;
-  const bossPlat = platforms[platforms.length - 1];
+  // Find the platform containing the boss x, fallback to last platform
+  const bossPlat = platforms.find(p => bd.x >= p.x && bd.x <= p.x + p.w) || platforms[platforms.length - 1];
   boss = new Boss(bd.x, bd.y, bossPlat, bd.hp, bd.type);
 
   cam.x = 0; cam.shake = 0; cam.shakeDur = 0;

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ninja Level Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/editor.css">
+</head>
+<body>
+<div id="editor-wrap">
+
+  <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
+  <header id="editor-header">
+    <span class="editor-title">NINJA LEVEL EDITOR</span>
+    <div id="header-controls">
+      <label class="hdr-label">Level
+        <select id="sel-level"><option value="0">1 — BAMBOOSKOGEN</option></select>
+      </label>
+      <label class="hdr-label">Namn   <input id="inp-name"   type="text"   value="BAMBOOSKOGEN" maxlength="30"></label>
+      <label class="hdr-label">Bredd  <input id="inp-width"  type="number" value="3700" min="960" max="20000" step="32"></label>
+      <label class="hdr-label">Fiendefart <input id="inp-speed"  type="number" value="55"  min="10" max="300" step="5"></label>
+      <label class="hdr-label">Bågskyt-int <input id="inp-archer" type="number" value="3.8" min="0.5" max="10"  step="0.1"></label>
+      <label class="hdr-label">Bakgrund
+        <select id="sel-bg">
+          <option value="0">0 — Bambu</option>
+          <option value="1">1 — Berg</option>
+          <option value="2">2 — Tempel</option>
+        </select>
+      </label>
+      <button id="btn-load-db"   class="btn-hdr btn-sec">Ladda DB</button>
+      <button id="btn-save-db"   class="btn-hdr btn-pri">Spara DB</button>
+      <button id="btn-reset-db"  class="btn-hdr btn-danger">Återställ</button>
+      <button id="btn-new-level" class="btn-hdr btn-sec">+ Nytt level</button>
+    </div>
+  </header>
+
+  <!-- ── Main area ────────────────────────────────────────────────────────── -->
+  <div id="editor-main">
+    <!-- Toolbox — populated by editor-main.js from E_TOOLS in editor-constants.js -->
+    <aside id="toolbox"></aside>
+
+    <!-- Canvas area -->
+    <div id="canvas-area">
+      <div id="canvas-container">
+        <canvas id="editor-canvas" width="960" height="540"></canvas>
+        <div id="canvas-overlay-info">
+          <span id="coord-label">x: 0  y: 0</span>
+          <span id="grid-label">Rutnät: 32 px</span>
+        </div>
+      </div>
+      <div id="scroll-row">
+        <span class="scroll-lbl">◀</span>
+        <input type="range" id="scrollbar" min="0" max="2740" value="0" step="4">
+        <span class="scroll-lbl">▶</span>
+        <span id="view-range-label">0 – 960 / 3700</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Properties panel ──────────────────────────────────────────────────── -->
+  <div id="props-panel">
+    <div id="props-header">
+      <span id="props-title">Inga objekt valda</span>
+      <button id="btn-prop-delete" class="btn-danger" style="display:none">Radera</button>
+    </div>
+    <div id="props-body">
+      <p id="props-hint">Klicka på ett objekt med Markera-verktyget för att redigera det.</p>
+    </div>
+  </div>
+
+  <!-- ── Status bar ─────────────────────────────────────────────────────────── -->
+  <div id="status-bar">
+    <span id="status-msg">Initialiserar…</span>
+    <span id="item-counts"></span>
+  </div>
+
+</div>
+
+<!-- Scripts — order matters: constants → state → draw → tools → props → db → main -->
+<script src="js/game-constants.js"></script>
+<script src="js/editor-constants.js"></script>
+<script src="js/editor-state.js"></script>
+<script src="js/editor-draw.js"></script>
+<script src="js/editor-tools.js"></script>
+<script src="js/editor-props.js"></script>
+<script src="js/editor-db.js"></script>
+<script src="js/editor-main.js"></script>
+</body>
+</html>
