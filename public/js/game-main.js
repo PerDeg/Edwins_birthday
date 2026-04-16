@@ -6,23 +6,25 @@ const ctx    = canvas.getContext('2d');
 let scale = 1;
 
 function resize() {
-  const dpr    = window.devicePixelRatio || 1;
-  // On touch devices, reserve space for the on-screen controls at the bottom
-  const touchH = window.matchMedia('(pointer: coarse)').matches ? 164 : 0;
-  const sx  = window.innerWidth  / C.W;
-  const sy  = (window.innerHeight - touchH) / C.H;
+  const dpr = window.devicePixelRatio || 1;
+  // Use visualViewport when available so layout tracks the browser chrome hiding/showing
+  const vw  = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+  const vh  = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const sx  = vw / C.W;
+  const sy  = vh / C.H;
   scale = Math.min(sx, sy);
   const cw = C.W * scale, ch = C.H * scale;
   canvas.style.width   = cw + 'px';
   canvas.style.height  = ch + 'px';
-  canvas.style.left    = (window.innerWidth  - cw) / 2 + 'px';
-  canvas.style.top     = (window.innerHeight - ch) / 2 + 'px';
+  canvas.style.left    = (vw - cw) / 2 + 'px';
+  canvas.style.top     = (vh - ch) / 2 + 'px';
   canvas.width  = Math.round(cw * dpr);
   canvas.height = Math.round(ch * dpr);
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;   // pixel-perfect sprites
 }
 window.addEventListener('resize', resize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
 
 // ── Input ──────────────────────────────────────────────────────────────────────
