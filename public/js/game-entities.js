@@ -222,6 +222,7 @@ class Player {
     this.attackTimer = 0;
     this.attackCooldown = 0;
     this.invincible = 0;
+    this.crouching  = false;
     this.prevState = 'idle';
     this.lives = C.LIVES;
     this.alive = true;
@@ -243,20 +244,81 @@ class Grunt {
     this.platform = platform;
     this.vx = (Math.random() > 0.5 ? 1 : -1) * 55 * speedMul;
     this.facing = this.vx > 0 ? 1 : -1;
-    this.animFrame = 0;
-    this.animTimer = 0;
-    this.alive = true;
-    this.type = 'grunt';
+    this.animFrame   = 0;
+    this.animTimer   = 0;
+    this.alive       = true;
+    this.type        = 'grunt';
+    this.aiState     = 'patrol';   // patrol | suspect | alert | return
+    this.detectTimer = 0;
+    this.lostTimer   = 0;
+    this.returnX     = px;
+    this.baseSpd     = Math.abs(this.vx);
   }
-  update(dt) {
-    this.x += this.vx * dt;
-    const { x: px, w: pw } = this.platform;
-    if (this.x < px || this.x + this.w > px + pw) {
-      this.vx *= -1; this.facing *= -1;
-      this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+  canSeePlayer(player) {
+    const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
+    const dy = (player.y + player.h / 2) - (this.y + this.h / 2);
+    if (dx * this.facing < 0) return false;          // player is behind guard
+    if (Math.abs(dx) > C.DETECTION_RANGE) return false;
+    if (Math.abs(dy) > C.DETECTION_HEIGHT) return false;
+    return true;
+  }
+  isBehind(player) {
+    return ((player.x + player.w / 2) - (this.x + this.w / 2)) * this.facing < 0;
+  }
+  updateStealth(dt, player) {
+    const sees  = this.canSeePlayer(player);
+    const dist  = Math.hypot(player.x + player.w / 2 - this.x - this.w / 2,
+                             player.y + player.h / 2 - this.y - this.h / 2);
+    const heard = !player.crouching && player.state === 'run' && dist < C.HEAR_RANGE;
+    const rate  = player.crouching ? 0.30 : (heard ? 2.5 : 1.0);
+
+    if (this.aiState === 'patrol' || this.aiState === 'suspect') {
+      if (sees || (heard && dist < C.HEAR_RANGE * 0.5)) {
+        this.detectTimer += dt * rate;
+        this.aiState = 'suspect';
+        if (this.detectTimer >= C.DETECTION_TIME) {
+          this.aiState = 'alert'; this.detectTimer = C.DETECTION_TIME;
+        }
+      } else {
+        this.detectTimer = Math.max(0, this.detectTimer - dt * 1.6);
+        if (this.detectTimer <= 0) this.aiState = 'patrol';
+      }
+    } else if (this.aiState === 'alert') {
+      if (!sees && dist > C.DETECTION_RANGE * 1.2) {
+        this.lostTimer += dt;
+        if (this.lostTimer > 3.0) { this.aiState = 'return'; this.lostTimer = 0; }
+      } else { this.lostTimer = 0; }
+    } else if (this.aiState === 'return') {
+      if (sees) { this.aiState = 'alert'; this.detectTimer = C.DETECTION_TIME; }
+      else if (Math.abs(this.x - this.returnX) < 20) {
+        this.aiState = 'patrol'; this.detectTimer = 0;
+      }
     }
+  }
+  update(dt, player) {
+    if (this.aiState === 'alert' && player) {
+      const dir   = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
+      this.vx     = dir * this.baseSpd * C.ALERT_SPEED_MUL;
+      this.facing = dir;
+      this.x     += this.vx * dt;
+    } else if (this.aiState === 'return') {
+      const dir   = this.returnX > this.x ? 1 : -1;
+      this.vx     = dir * this.baseSpd * 0.70;
+      this.facing = dir;
+      this.x     += this.vx * dt;
+      const { x: px, w: pw } = this.platform;
+      this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+    } else {
+      this.x += this.vx * dt;
+      const { x: px, w: pw } = this.platform;
+      if (this.x < px || this.x + this.w > px + pw) {
+        this.vx *= -1; this.facing *= -1;
+        this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+      }
+    }
+    const spd = this.aiState === 'alert' ? 0.08 : 0.14;
     this.animTimer += dt;
-    if (this.animTimer > 0.14) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
+    if (this.animTimer > spd) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
   }
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
 }

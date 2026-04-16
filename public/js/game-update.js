@@ -41,9 +41,12 @@ function platformCollision(entity) {
 function updatePlayer(dt) {
   const p = player;
 
-  const left  = keys['ArrowLeft']  || keys['KeyA'];
-  const right = keys['ArrowRight'] || keys['KeyD'];
-  p.vx = right ? C.PLAYER_SPEED : left ? -C.PLAYER_SPEED : 0;
+  const left   = keys['ArrowLeft']  || keys['KeyA'];
+  const right  = keys['ArrowRight'] || keys['KeyD'];
+  const crouch = keys['ArrowDown']  || keys['KeyS'];
+  p.crouching  = !!(crouch && p.onGround);
+  const spd    = p.crouching ? C.CROUCH_SPEED : C.PLAYER_SPEED;
+  p.vx = right ? spd : left ? -spd : 0;
   if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
 
   const jumpPressed = keyJustPressed('Space') || keyJustPressed('ArrowUp') || keyJustPressed('KeyW');
@@ -93,7 +96,7 @@ function updatePlayer(dt) {
 
   if (p.y > C.H + 100) damagePlayer();
 
-  p.state = p.attacking ? 'attack' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
+  p.state = p.attacking ? 'attack' : p.crouching ? 'crouch' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
   if (p.state !== p.prevState) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
   p.animTimer += dt;
   if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
@@ -102,6 +105,7 @@ function updatePlayer(dt) {
 function damagePlayer() {
   if (player.invincible > 0) return;
   lives--;
+  combo = 1; comboTimer = 0;
   player.invincible = C.INVINCIBLE_TIME;
   screenFlash = 1;
   triggerShake(10, 0.35);
@@ -153,16 +157,25 @@ function triggerGemSpecial() {
 function updateEnemies(dt) {
   for (const e of enemies) {
     if (!e.alive) continue;
-    e.type === 'grunt' ? e.update(dt) : e.update(dt, player, shurikens);
+    if (e.type === 'grunt') {
+      e.updateStealth(dt, player);
+      e.update(dt, player);
+    } else {
+      e.update(dt, player, shurikens);
+    }
 
     if (player.attackActive) {
       const hb = player.attackHitbox();
       if (rectsOverlap(hb, e.bounds())) {
-        if (e.type === 'archer') {
+        if (e.type === 'grunt' && e.aiState !== 'alert' && e.isBehind(player)) {
+          killEnemy(e, true);   // stealth kill from behind
+        } else if (e.type === 'archer') {
           e.hits++;
           if (e.hits < 2) { emitHit(particles, e.x + e.w/2, e.y + e.h/2); continue; }
+          killEnemy(e);
+        } else {
+          killEnemy(e);
         }
-        killEnemy(e);
       }
     }
     if (player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) damagePlayer();
@@ -170,15 +183,29 @@ function updateEnemies(dt) {
   enemies = enemies.filter(e => e.alive);
 }
 
-function killEnemy(e) {
+function killEnemy(e, stealth = false) {
   e.alive = false; kills++;
   combo = Math.min(combo + 1, C.MAX_COMBO);
   comboTimer = C.COMBO_TIMEOUT;
-  const pts = C.KILL_SCORE * combo;
+  const basePts = C.KILL_SCORE * combo;
+  const pts     = stealth ? basePts + C.STEALTH_KILL_BONUS : basePts;
   score += pts;
   emitEnemyDeath(particles, e.x + e.w / 2, e.y + e.h / 2);
   floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 10, `+${pts}`, C.COL_GOLD, 1 + combo * 0.15));
-  if (combo > 1) floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 32, `×${combo}!`, '#ff6b35', 1.3));
+  if (stealth) {
+    floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 34, 'STEALTH KILL!', '#a0f0ff', 1.35));
+  } else if (combo > 1) {
+    floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 32, `×${combo}!`, '#ff6b35', 1.3));
+  }
+  // Normal kills alert nearby guards (stealth kills are silent)
+  if (!stealth) {
+    for (const other of enemies) {
+      if (!other.alive || other === e || other.type !== 'grunt') continue;
+      if (Math.hypot(other.x - e.x, other.y - e.y) < 260) {
+        other.aiState = 'alert'; other.detectTimer = C.DETECTION_TIME;
+      }
+    }
+  }
   Audio.defeat();
 }
 

@@ -35,6 +35,15 @@ const C = {
   ENEMY_SPEED_MUL: 0.70,
   SHOOT_MUL:       1.4,
 
+  // Stealth system
+  DETECTION_RANGE:     230,
+  DETECTION_HEIGHT:    130,
+  DETECTION_TIME:      0.80,
+  ALERT_SPEED_MUL:     1.85,
+  HEAR_RANGE:          90,
+  CROUCH_SPEED:        90,
+  STEALTH_KILL_BONUS:  50,
+
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
     {
