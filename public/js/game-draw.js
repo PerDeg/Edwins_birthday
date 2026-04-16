@@ -12,15 +12,11 @@ function drawPlatform(ctx, p) {
     }
     return;
   }
-  const grad = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
-  grad.addColorStop(0,   '#5a7a2a');
-  grad.addColorStop(0.3, '#3a5a1a');
-  grad.addColorStop(1,   '#2a3a14');
-  ctx.fillStyle = grad;
+  ctx.fillStyle = '#3a5a1a';
   ctx.fillRect(p.x, p.y, p.w, p.h);
   ctx.fillStyle = '#8aba3a';
   ctx.fillRect(p.x, p.y, p.w, 3);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillStyle = '#1e3010';
   ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
 }
 

@@ -354,17 +354,28 @@ class Coin {
       return;
     }
 
-    // Programmatic fallback — gold disc with shine
+    // Programmatic fallback — animated spinning coin (horizontal squish)
     const cx = drawX + this.w / 2, cy = drawY + this.h / 2;
     const colMap = { gold:'#ffd700', silver:'#c0c0c0', copper:'#b87333' };
     const rimMap = { gold:'#c8a020', silver:'#909090', copper:'#8a5320' };
+    const faceCol = colMap[this.type] || '#ffd700';
+    const rimCol  = rimMap[this.type] || '#c8a020';
+    // spin: cos drives horizontal radius (0 = edge-on, 1 = face-on)
+    const spin = Math.abs(Math.cos(this.animFrame * 0.45));
+    const rx   = Math.max(1, 8 * spin);
+    const ry   = 8;
     ctx.save();
-    ctx.fillStyle   = colMap[this.type] || '#ffd700';
-    ctx.strokeStyle = rimMap[this.type] || '#c8a020';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath(); ctx.ellipse(cx, cy, 8, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.beginPath(); ctx.ellipse(cx - 2, cy - 2, 2.8, 3.8, -0.5, 0, Math.PI * 2); ctx.fill();
+    // Rim (slightly darker, slightly larger)
+    ctx.fillStyle = rimCol;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx + 1.5, ry + 1, 0, 0, Math.PI * 2); ctx.fill();
+    // Face
+    ctx.fillStyle = spin > 0.5 ? faceCol : rimCol;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    // Shine (only when facing camera)
+    if (spin > 0.3) {
+      ctx.fillStyle = 'rgba(255,255,255,0.40)';
+      ctx.beginPath(); ctx.ellipse(cx - rx * 0.3, cy - 2.5, rx * 0.35, 2.8, -0.4, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.restore();
   }
   bounds() { return { x: this.x, y: this.y + Math.sin(this.bobTimer) * 3, w: this.w, h: this.h }; }

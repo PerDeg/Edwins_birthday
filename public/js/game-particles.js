@@ -24,10 +24,8 @@ class Particle {
     const t = this.age / this.lifetime;
     ctx.globalAlpha = (1 - t) * 0.95;
     ctx.fillStyle = this.color;
-    const r = this.size * (1 - t * 0.5);
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, Math.max(0.5, r), 0, Math.PI * 2);
-    ctx.fill();
+    const r = Math.max(0.5, this.size * (1 - t * 0.5));
+    ctx.fillRect(this.x - r, this.y - r, r * 2, r * 2);
     ctx.globalAlpha = 1;
   }
 }
