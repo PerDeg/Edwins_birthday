@@ -5,6 +5,10 @@ const Background = (() => {
   let _theme = 0;
   // Offscreen canvas for static sky — rebuilt only when theme changes
   let _skyCanvas = null, _skyTheme = -1;
+  // Offscreen canvases for pre-rendered parallax layers — rebuilt only on theme change
+  let _mountainCanvas = null, _silCanvas = null, _layerTheme = -1;
+  // Cached ground gradient — rebuilt only on theme change (safe to reuse across frames/resizes)
+  let _groundGrad = null, _groundGradTheme = -1;
 
   function _rebuildSky() {
     if (!_skyCanvas) {
@@ -43,7 +47,77 @@ const Background = (() => {
     _skyTheme = t;
   }
 
-  function setTheme(t) { _theme = t; _skyTheme = -1; }   // invalidate cache
+  // Pre-renders mountains and silhouettes for the current theme onto offscreen canvases.
+  // Each frame we then blit a viewport-sized slice — O(1) instead of O(n paths).
+  const _LAYER_MW = C.W + 900;   // mountain canvas width: covers camX * 0.15 up to ~875 + C.W
+  const _LAYER_SW = C.W + 2300;  // silhouette canvas width: covers camX * 0.40 up to ~2200 + C.W
+
+  function _rebuildLayers() {
+    const t = _theme;
+
+    // ── Mountain layer ────────────────────────────────────────────────────────
+    if (!_mountainCanvas) {
+      _mountainCanvas = document.createElement('canvas');
+      _mountainCanvas.width = _LAYER_MW;
+      _mountainCanvas.height = C.H;
+    }
+    const mc = _mountainCanvas.getContext('2d');
+    mc.clearRect(0, 0, _LAYER_MW, C.H);
+    mc.fillStyle = t === 1 ? '#252535' : t === 2 ? '#2a1010' : '#1b1b38';
+    mountains.forEach(m => {
+      if (m.cx + m.w / 2 > 0 && m.cx - m.w / 2 < _LAYER_MW) drawMountain(mc, m);
+    });
+    if (t === 1) {
+      mc.fillStyle = 'rgba(220,230,255,0.55)';
+      mountains.forEach(m => {
+        if (m.cx + m.w / 2 > 0 && m.cx - m.w / 2 < _LAYER_MW && m.h > 100) {
+          const sh = m.h * 0.25;
+          mc.beginPath();
+          mc.moveTo(m.cx - m.w * 0.25, C.GROUND_Y - m.h + sh);
+          mc.lineTo(m.cx, C.GROUND_Y - m.h);
+          mc.lineTo(m.cx + m.w * 0.25, C.GROUND_Y - m.h + sh);
+          mc.closePath(); mc.fill();
+        }
+      });
+    }
+
+    // ── Silhouette layer ──────────────────────────────────────────────────────
+    if (!_silCanvas) {
+      _silCanvas = document.createElement('canvas');
+      _silCanvas.width = _LAYER_SW;
+      _silCanvas.height = C.H;
+    }
+    const sc = _silCanvas.getContext('2d');
+    sc.clearRect(0, 0, _LAYER_SW, C.H);
+    if (t === 1) {
+      sc.fillStyle = '#151525';
+      rocks.forEach(r => { if (r.x + r.w / 2 > 0 && r.x - r.w / 2 < _LAYER_SW) drawRock(sc, r); });
+    } else if (t === 2) {
+      sc.fillStyle = '#150808';
+      temples.forEach(tmpl => {
+        if (tmpl.x + 100 > 0 && tmpl.x - 10 < _LAYER_SW) {
+          if (tmpl.type === 'tower') drawTower(sc, tmpl); else drawWall(sc, tmpl);
+        }
+      });
+      sc.fillStyle = 'rgba(255,120,0,0.7)';
+      temples.forEach(tmpl => {
+        if (tmpl.type === 'tower' && tmpl.x + 100 > 0 && tmpl.x < _LAYER_SW) {
+          sc.beginPath(); sc.arc(tmpl.x, C.GROUND_Y - tmpl.h - 22, 4, 0, Math.PI * 2); sc.fill();
+        }
+      });
+    } else {
+      sc.fillStyle = '#0d0d1a';
+      silhouettes.forEach(s => {
+        if (s.x + 80 > 0 && s.x - 80 < _LAYER_SW) {
+          s.type === 'bamboo' ? drawBamboo(sc, s) : drawPagoda(sc, s);
+        }
+      });
+    }
+
+    _layerTheme = t;
+  }
+
+  function setTheme(t) { _theme = t; _skyTheme = -1; _layerTheme = -1; _groundGradTheme = -1; }
 
   const WORLD_W = 30000;
 
@@ -93,9 +167,14 @@ const Background = (() => {
     return items;
   }
 
-  // Ground bump map — deterministic sine for terrain variation
+  // Pre-computed ground bump LUT — replaces 3×Math.sin per call in tight draw loops
+  const _BUMP_LUT_SIZE = 8192;  // power-of-2, covers camX up to ~7200 + C.W
+  const _BUMP_LUT = new Float32Array(_BUMP_LUT_SIZE);
+  for (let i = 0; i < _BUMP_LUT_SIZE; i++) {
+    _BUMP_LUT[i] = Math.sin(i * 0.031) * 3 + Math.sin(i * 0.071) * 2 + Math.sin(i * 0.018) * 4;
+  }
   function groundBump(worldX) {
-    return Math.sin(worldX * 0.031) * 3 + Math.sin(worldX * 0.071) * 2 + Math.sin(worldX * 0.018) * 4;
+    return _BUMP_LUT[(worldX | 0) & (_BUMP_LUT_SIZE - 1)];
   }
 
   const mountains   = genMountains(60);
@@ -218,91 +297,37 @@ const Background = (() => {
   }
 
   function drawMountains(ctx, camX) {
-    ctx.save();
-    ctx.translate(-camX * 0.15, 0);
-    const lo = camX*0.15-100, hi = lo+C.W+200;
-
-    if (_theme === 1) {
-      ctx.fillStyle = '#252535';
-    } else if (_theme === 2) {
-      ctx.fillStyle = '#2a1010';
-    } else {
-      ctx.fillStyle = '#1b1b38';
-    }
-    mountains.forEach(m => { if (m.cx+m.w/2>lo && m.cx-m.w/2<hi) drawMountain(ctx,m); });
-
-    // Snow caps on mountain theme
-    if (_theme === 1) {
-      ctx.fillStyle = 'rgba(220,230,255,0.55)';
-      mountains.forEach(m => {
-        if (m.cx+m.w/2>lo && m.cx-m.w/2<hi && m.h > 100) {
-          const sh = m.h * 0.25;
-          ctx.beginPath();
-          ctx.moveTo(m.cx - m.w*0.25, C.GROUND_Y - m.h + sh);
-          ctx.lineTo(m.cx, C.GROUND_Y - m.h);
-          ctx.lineTo(m.cx + m.w*0.25, C.GROUND_Y - m.h + sh);
-          ctx.closePath(); ctx.fill();
-        }
-      });
-    }
-    ctx.restore();
+    // Blit pre-rendered layer — one drawImage instead of O(n) vector paths
+    ctx.drawImage(_mountainCanvas, camX * 0.15, 0, C.W, C.H, 0, 0, C.W, C.H);
   }
 
   function drawSilhouettes(ctx, camX) {
-    ctx.save();
-    ctx.translate(-camX * 0.40, 0);
-    const lo = camX*0.40-100, hi = lo+C.W+200;
-
-    if (_theme === 1) {
-      // Rocky spires + dead trees
-      ctx.fillStyle = '#151525';
-      rocks.forEach(r => { if (r.x+r.w/2>lo && r.x-r.w/2<hi) drawRock(ctx,r); });
-    } else if (_theme === 2) {
-      // Towers + castle walls
-      ctx.fillStyle = '#150808';
-      temples.forEach(t => {
-        if (t.x+100>lo && t.x-10<hi) {
-          if (t.type==='tower') drawTower(ctx, t); else drawWall(ctx, t);
-        }
-      });
-      // Torch flames (screen space anim ignored here — static orange dots)
-      ctx.fillStyle = 'rgba(255,120,0,0.7)';
-      temples.forEach(t => {
-        if (t.type==='tower' && t.x+100>lo && t.x<hi) {
-          ctx.beginPath(); ctx.arc(t.x, C.GROUND_Y - t.h - 22, 4, 0, Math.PI*2); ctx.fill();
-        }
-      });
-    } else {
-      // Bamboo + pagodas
-      ctx.fillStyle = '#0d0d1a';
-      silhouettes.forEach(s => {
-        if (s.x+80>lo && s.x-80<hi) {
-          s.type==='bamboo' ? drawBamboo(ctx,s) : drawPagoda(ctx,s);
-        }
-      });
-    }
-    ctx.restore();
+    // Blit pre-rendered layer — one drawImage instead of O(n) vector paths
+    ctx.drawImage(_silCanvas, camX * 0.40, 0, C.W, C.H, 0, 0, C.W, C.H);
   }
 
   function drawGround(ctx, camX) {
     const theme = _theme;
 
-    // ── Underground depth layers ──
-    const g1 = ctx.createLinearGradient(0, C.GROUND_Y, 0, C.H);
-    if (theme === 1) {
-      g1.addColorStop(0,   '#2a2a2a');
-      g1.addColorStop(0.3, '#1a1a1e');
-      g1.addColorStop(1,   '#0e0e12');
-    } else if (theme === 2) {
-      g1.addColorStop(0,   '#1e0a0a');
-      g1.addColorStop(0.3, '#140808');
-      g1.addColorStop(1,   '#0a0404');
-    } else {
-      g1.addColorStop(0,   '#1a1a0a');
-      g1.addColorStop(0.3, '#141408');
-      g1.addColorStop(1,   '#0a0a04');
+    // ── Underground depth layers ── (gradient cached per theme)
+    if (_groundGradTheme !== theme) {
+      _groundGrad = ctx.createLinearGradient(0, C.GROUND_Y, 0, C.H);
+      if (theme === 1) {
+        _groundGrad.addColorStop(0,   '#2a2a2a');
+        _groundGrad.addColorStop(0.3, '#1a1a1e');
+        _groundGrad.addColorStop(1,   '#0e0e12');
+      } else if (theme === 2) {
+        _groundGrad.addColorStop(0,   '#1e0a0a');
+        _groundGrad.addColorStop(0.3, '#140808');
+        _groundGrad.addColorStop(1,   '#0a0404');
+      } else {
+        _groundGrad.addColorStop(0,   '#1a1a0a');
+        _groundGrad.addColorStop(0.3, '#141408');
+        _groundGrad.addColorStop(1,   '#0a0a04');
+      }
+      _groundGradTheme = theme;
     }
-    ctx.fillStyle = g1;
+    ctx.fillStyle = _groundGrad;
     ctx.fillRect(0, C.GROUND_Y, C.W, C.H - C.GROUND_Y);
 
     // ── Uneven surface strip ──
@@ -326,7 +351,7 @@ const Background = (() => {
     ctx.strokeStyle = edgeColors[theme] || edgeColors[0];
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    for (let sx = 0; sx <= C.W; sx += 4) {
+    for (let sx = 0; sx <= C.W; sx += 8) {
       const wx = sx + camX;
       const bump = groundBump(wx);
       if (sx === 0) ctx.moveTo(sx, C.GROUND_Y + bump);
@@ -370,14 +395,14 @@ const Background = (() => {
     }
   }
 
-  // Unified call: uses bg image + ground when available, else programmatic with cached sky.
+  // Unified call: uses bg image + ground when available, else programmatic with cached layers.
   function drawBackground(ctx, camX) {
     const bgName = `bg-level${_theme + 1}`;
     if (typeof Sprites !== 'undefined' && Sprites.has(bgName)) {
       Sprites.drawBg(ctx, bgName, camX);
     } else {
-      // Blit cached sky (avoid rebuilding gradient every frame)
       if (_skyTheme !== _theme) _rebuildSky();
+      if (_layerTheme !== _theme) _rebuildLayers();
       ctx.drawImage(_skyCanvas, 0, 0);
       drawMountains(ctx, camX);
       drawSilhouettes(ctx, camX);
