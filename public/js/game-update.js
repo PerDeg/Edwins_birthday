@@ -157,6 +157,10 @@ function triggerGemSpecial() {
 function updateEnemies(dt) {
   for (const e of enemies) {
     if (!e.alive) continue;
+    // Skip enemies far off-screen that can't possibly interact with the player.
+    // Detection range is 230px so a 450px margin is safe. Always update alert grunts.
+    const nearViewport = e.x + e.w > cam.x - 450 && e.x < cam.x + C.W + 450;
+    if (!nearViewport && (e.type !== 'grunt' || e.aiState === 'patrol')) continue;
     if (e.type === 'grunt') {
       e.updateStealth(dt, player);
       e.update(dt, player);

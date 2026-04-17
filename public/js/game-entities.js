@@ -256,10 +256,10 @@ class Grunt {
   }
   canSeePlayer(player) {
     const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
-    const dy = (player.y + player.h / 2) - (this.y + this.h / 2);
     if (dx * this.facing < 0) return false;          // player is behind guard
     if (Math.abs(dx) > C.DETECTION_RANGE) return false;
-    if (Math.abs(dy) > C.DETECTION_HEIGHT) return false;
+    // Player must be standing on the same platform surface (feet within 20px of this platform)
+    if (Math.abs((player.y + player.h) - this.platform.y) > 20) return false;
     return true;
   }
   isBehind(player) {
@@ -301,6 +301,8 @@ class Grunt {
       this.vx     = dir * this.baseSpd * C.ALERT_SPEED_MUL;
       this.facing = dir;
       this.x     += this.vx * dt;
+      const { x: px, w: pw } = this.platform;
+      this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
     } else if (this.aiState === 'return') {
       const dir   = this.returnX > this.x ? 1 : -1;
       this.vx     = dir * this.baseSpd * 0.70;
