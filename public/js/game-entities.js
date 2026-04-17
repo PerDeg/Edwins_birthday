@@ -223,6 +223,8 @@ class Player {
     this.attackCooldown = 0;
     this.invincible = 0;
     this.crouching  = false;
+    this.hiding     = false;
+    this.hidingAt   = null;
     this.prevState = 'idle';
     this.lives = C.LIVES;
     this.alive = true;
@@ -253,8 +255,11 @@ class Grunt {
     this.lostTimer   = 0;
     this.returnX     = px;
     this.baseSpd     = Math.abs(this.vx);
+    this.patrolWait      = 0;                           // standing-still countdown at edge
+    this.patrolStopTimer = 2.5 + Math.random() * 2.5;  // countdown to next random mid-patrol pause
   }
   canSeePlayer(player) {
+    if (player.hiding) return false;
     const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
     if (dx * this.facing < 0) return false;          // player is behind guard
     if (Math.abs(dx) > C.DETECTION_RANGE) return false;
@@ -269,7 +274,7 @@ class Grunt {
     const sees  = this.canSeePlayer(player);
     const dist  = Math.hypot(player.x + player.w / 2 - this.x - this.w / 2,
                              player.y + player.h / 2 - this.y - this.h / 2);
-    const heard = !player.crouching && player.state === 'run' && dist < C.HEAR_RANGE;
+    const heard = !player.crouching && !player.hiding && player.state === 'run' && dist < C.HEAR_RANGE;
     const rate  = player.crouching ? 0.30 : (heard ? 2.5 : 1.0);
 
     if (this.aiState === 'patrol' || this.aiState === 'suspect') {
@@ -311,14 +316,28 @@ class Grunt {
       const { x: px, w: pw } = this.platform;
       this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
     } else {
-      this.x += this.vx * dt;
-      const { x: px, w: pw } = this.platform;
-      if (this.x < px || this.x + this.w > px + pw) {
-        this.vx *= -1; this.facing *= -1;
-        this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+      // Patrol: slow deliberate movement with edge stops and random mid-patrol pauses
+      if (this.patrolWait > 0) {
+        this.patrolWait -= dt;
+      } else {
+        this.patrolStopTimer -= dt;
+        if (this.patrolStopTimer <= 0) {
+          this.patrolWait      = 0.8 + Math.random() * 1.2;
+          this.patrolStopTimer = 3.0 + Math.random() * 3.0;
+        } else {
+          this.x += this.vx * C.PATROL_SPEED_MUL * dt;
+          const { x: px, w: pw } = this.platform;
+          if (this.x < px || this.x + this.w > px + pw) {
+            this.vx *= -1; this.facing *= -1;
+            this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+            this.patrolWait = C.PATROL_WAIT_MIN + Math.random() * (C.PATROL_WAIT_MAX - C.PATROL_WAIT_MIN);
+          }
+        }
       }
     }
-    const spd = this.aiState === 'alert' ? 0.08 : 0.14;
+    const isMoving = this.aiState === 'alert' || (this.aiState !== 'patrol' && this.aiState !== 'return') ||
+                     (this.patrolWait <= 0 && this.aiState === 'patrol');
+    const spd = this.aiState === 'alert' ? 0.08 : isMoving ? 0.14 : 0.22;
     this.animTimer += dt;
     if (this.animTimer > spd) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
   }
@@ -383,6 +402,17 @@ class EnemyShuriken {
     if (this.y > C.H + 50) this.alive = false;
   }
   bounds() { return { x: this.x - 7, y: this.y - 7, w: 14, h: 14 }; }
+}
+
+// ── Hiding spots ──────────────────────────────────────────────────────────
+class HidingSpot {
+  constructor(type, x, y) {
+    this.type = type;   // 'barrel' | 'shadow'
+    this.x    = x;
+    this.y    = y;
+    if (type === 'barrel') { this.w = 28; this.h = 34; }
+    else                   { this.w = 42; this.h = 12; }
+  }
 }
 
 // ── AABB collision ─────────────────────────────────────────────────────────

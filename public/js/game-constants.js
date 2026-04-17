@@ -44,6 +44,14 @@ const C = {
   CROUCH_SPEED:        90,
   STEALTH_KILL_BONUS:  50,
 
+  // Patrol behaviour
+  PATROL_SPEED_MUL:    0.40,   // patrol at 40% of base speed (deliberate pacing)
+  PATROL_WAIT_MIN:     1.4,    // minimum stop duration at platform edge (s)
+  PATROL_WAIT_MAX:     3.2,    // maximum stop duration at platform edge (s)
+
+  // Hiding mechanic
+  HIDE_RANGE:          52,     // horizontal distance to interact with a hiding spot
+
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
     {
@@ -78,19 +86,18 @@ const C = {
         { type: 'archer', platIdx: 11 },
         { type: 'grunt',  platIdx: 13 },
       ],
-      coins: [
-        { x: 210, y: 362 }, { x: 245, y: 362 }, { x: 280, y: 362 },
-        { x: 460, y: 312 }, { x: 500, y: 312 },
-        { x: 665, y: 392 }, { x: 700, y: 392 }, { x: 735, y: 392 },
-        { x: 860, y: 282 }, { x: 900, y: 282 },
-        { x: 1090, y: 362 }, { x: 1130, y: 362 }, { x: 1170, y: 362 },
-        { x: 1310, y: 302 }, { x: 1350, y: 302 },
-        { x: 1710, y: 332 }, { x: 1750, y: 332 },
-        { x: 1920, y: 272 }, { x: 1960, y: 272 }, { x: 2000, y: 272 },
-        { x: 2390, y: 322 }, { x: 2430, y: 322 },
-        { x: 2615, y: 262 }, { x: 2655, y: 262 },
-        { x: 2820, y: 372 }, { x: 2860, y: 372 }, { x: 2900, y: 372 },
-        { x: 3070, y: 312 }, { x: 3110, y: 312 },
+      coins: [],
+      hidingSpots: [
+        { type: 'barrel', x: 195,  y: 356 },   // on plat 0 (y 390)
+        { type: 'shadow', x: 340,  y: 478 },   // ground
+        { type: 'barrel', x: 660,  y: 386 },   // on plat 2 (y 420)
+        { type: 'shadow', x: 760,  y: 478 },   // ground
+        { type: 'barrel', x: 1075, y: 356 },   // on plat 4 (y 390)
+        { type: 'barrel', x: 1510, y: 396 },   // on plat 6 (y 430)
+        { type: 'shadow', x: 1580, y: 478 },   // ground
+        { type: 'barrel', x: 1910, y: 266 },   // on plat 8 (y 300)
+        { type: 'shadow', x: 2200, y: 478 },   // ground
+        { type: 'barrel', x: 2605, y: 256 },   // on plat 11 (y 290)
       ],
       pickups: [
         { type: 'shuriken', x: 1090, y: 354 },
@@ -152,23 +159,19 @@ const C = {
         { type: 'archer', platIdx: 16 },
         { type: 'grunt',  platIdx: 17 },
       ],
-      coins: [
-        { x: 190, y: 372 }, { x: 225, y: 372 }, { x: 260, y: 372 },
-        { x: 410, y: 292 }, { x: 450, y: 292 },
-        { x: 600, y: 232 }, { x: 640, y: 232 }, { x: 680, y: 232 },
-        { x: 800, y: 342 }, { x: 840, y: 342 },
-        { x: 980, y: 252 }, { x: 1020, y: 252 }, { x: 1060, y: 252 },
-        { x: 1200, y: 362 }, { x: 1240, y: 362 },
-        { x: 1400, y: 272 }, { x: 1440, y: 272 },
-        { x: 1840, y: 282 }, { x: 1880, y: 282 },
-        { x: 2270, y: 272 }, { x: 2310, y: 272 }, { x: 2350, y: 272 },
-        { x: 2510, y: 352 }, { x: 2550, y: 352 },
-        { x: 2730, y: 262 }, { x: 2770, y: 262 },
-        { x: 2970, y: 362 }, { x: 3010, y: 362 }, { x: 3050, y: 362 },
-        { x: 3200, y: 282 }, { x: 3240, y: 282 },
-        { x: 3450, y: 362 }, { x: 3490, y: 362 },
-        { x: 3690, y: 272 }, { x: 3730, y: 272 },
-        { x: 3930, y: 352 }, { x: 3970, y: 352 },
+      coins: [],
+      hidingSpots: [
+        { type: 'barrel', x: 395,  y: 286 },   // on plat 1 (y 320)
+        { type: 'shadow', x: 530,  y: 478 },   // ground
+        { type: 'barrel', x: 1185, y: 356 },   // on plat 5 (y 390)
+        { type: 'shadow', x: 1290, y: 478 },   // ground
+        { type: 'barrel', x: 2055, y: 366 },   // on plat 9 (y 400)
+        { type: 'shadow', x: 2160, y: 478 },   // ground
+        { type: 'barrel', x: 2495, y: 346 },   // on plat 11 (y 380)
+        { type: 'shadow', x: 2820, y: 478 },   // ground
+        { type: 'barrel', x: 2955, y: 356 },   // on plat 13 (y 390)
+        { type: 'barrel', x: 3435, y: 356 },   // on plat 15 (y 390)
+        { type: 'shadow', x: 3580, y: 478 },   // ground
       ],
       pickups: [
         { type: 'shuriken', x: 800,  y: 338 },
@@ -240,28 +243,24 @@ const C = {
         { type: 'grunt',  platIdx: 19 },
         { type: 'archer', platIdx: 21 },
       ],
-      coins: [
-        { x: 180, y: 362 }, { x: 215, y: 362 }, { x: 250, y: 362 },
-        { x: 400, y: 282 }, { x: 435, y: 282 },
-        { x: 580, y: 392 }, { x: 615, y: 392 }, { x: 650, y: 392 },
-        { x: 750, y: 248 }, { x: 785, y: 248 }, { x: 820, y: 248 },
-        { x: 970, y: 358 }, { x: 1005, y: 358 },
-        { x: 1160, y: 272 }, { x: 1195, y: 272 }, { x: 1230, y: 272 },
-        { x: 1525, y: 272 }, { x: 1560, y: 272 },
-        { x: 1760, y: 358 }, { x: 1795, y: 358 },
-        { x: 1975, y: 252 }, { x: 2010, y: 252 }, { x: 2045, y: 252 },
-        { x: 2190, y: 358 }, { x: 2225, y: 358 },
-        { x: 2390, y: 262 }, { x: 2425, y: 262 }, { x: 2460, y: 262 },
-        { x: 2615, y: 358 }, { x: 2650, y: 358 },
-        { x: 2830, y: 272 }, { x: 2865, y: 272 },
-        { x: 3055, y: 368 }, { x: 3090, y: 368 }, { x: 3125, y: 368 },
-        { x: 3265, y: 252 }, { x: 3300, y: 252 },
-        { x: 3495, y: 348 }, { x: 3530, y: 348 },
-        { x: 3715, y: 262 }, { x: 3750, y: 262 }, { x: 3785, y: 262 },
-        { x: 3955, y: 342 }, { x: 3990, y: 342 },
-        { x: 4195, y: 258 }, { x: 4230, y: 258 },
-        { x: 4435, y: 348 }, { x: 4470, y: 348 }, { x: 4505, y: 348 },
-        { x: 4675, y: 268 }, { x: 4710, y: 268 },
+      coins: [],
+      hidingSpots: [
+        { type: 'barrel', x: 165,  y: 356 },   // on plat 0 (y 390)
+        { type: 'shadow', x: 300,  y: 478 },   // ground
+        { type: 'barrel', x: 575,  y: 386 },   // on plat 2 (y 420)
+        { type: 'barrel', x: 1140, y: 266 },   // on plat 5 (y 300)
+        { type: 'shadow', x: 1340, y: 478 },   // ground
+        { type: 'barrel', x: 1510, y: 266 },   // on plat 7 (y 300)
+        { type: 'shadow', x: 1740, y: 478 },   // ground
+        { type: 'barrel', x: 1960, y: 246 },   // on plat 9 (y 280)
+        { type: 'barrel', x: 2375, y: 256 },   // on plat 11 (y 290)
+        { type: 'shadow', x: 2600, y: 478 },   // ground
+        { type: 'barrel', x: 2815, y: 266 },   // on plat 13 (y 300)
+        { type: 'shadow', x: 3040, y: 478 },   // ground
+        { type: 'barrel', x: 3250, y: 246 },   // on plat 15 (y 280)
+        { type: 'barrel', x: 3700, y: 256 },   // on plat 17 (y 290)
+        { type: 'shadow', x: 3940, y: 478 },   // ground
+        { type: 'barrel', x: 4180, y: 251 },   // on plat 19 (y 285)
       ],
       pickups: [
         { type: 'shuriken', x: 580,  y: 386 },

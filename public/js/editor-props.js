@@ -54,11 +54,16 @@ function eRenderProps() {
     _bindChange('ep-type',   v => { e.type = v; eRenderProps(); });
     _bindChange('ep-ground', () => { e.ground = document.getElementById('ep-ground').checked; eRenderProps(); });
 
-  } else if (col === 'coins') {
-    const c = ld.coins[idx];
-    titleEl.textContent = 'Mynt';
-    bodyEl.innerHTML = _row('X', _num('cp-x', c.x, 0, 20000, EGRID)) + _row('Y', _num('cp-y', c.y, 0, EGROUND_Y, EGRID));
-    _bindNum('cp-x', v => { c.x = v; }); _bindNum('cp-y', v => { c.y = v; });
+  } else if (col === 'hidingSpots') {
+    const h = ld.hidingSpots[idx];
+    titleEl.textContent = h.type === 'barrel' ? 'Tunna' : 'Skugga';
+    const typeOpts = [['barrel','Tunna'],['shadow','Skugga']];
+    bodyEl.innerHTML =
+      _row('X',   _num('hp-x', h.x, 0, 20000, EGRID)) +
+      _row('Y',   _num('hp-y', h.y, 0, EGROUND_Y, EGRID)) +
+      _row('Typ', _sel('hp-type', typeOpts, h.type));
+    _bindNum('hp-x', v => { h.x = v; }); _bindNum('hp-y', v => { h.y = v; });
+    _bindChange('hp-type', v => { h.type = v; eRenderProps(); });
 
   } else if (col === 'pickups') {
     const p = ld.pickups[idx];

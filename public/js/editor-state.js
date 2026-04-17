@@ -51,8 +51,9 @@ function eToFlat(ld) {
     archerInterval: ld.archerInterval || 3.8,
     platforms,
     enemies,
-    coins:   (ld.coins   || []).map(c => ({ x: c.x, y: c.y })),
-    pickups: (ld.pickups || []).map(p => ({ type: p.type, x: p.x, y: p.y })),
+    coins:        [],
+    hidingSpots:  (ld.hidingSpots || []).map(h => ({ type: h.type, x: h.x, y: h.y })),
+    pickups:      (ld.pickups || []).map(p => ({ type: p.type, x: p.x, y: p.y })),
     boss: ld.boss ? { x: ld.boss.x, y: ld.boss.y, hp: ld.boss.hp || 8, type: ld.boss.type || 'samurai' } : null,
   };
 }

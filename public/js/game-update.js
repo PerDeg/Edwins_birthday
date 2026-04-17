@@ -41,15 +41,48 @@ function platformCollision(entity) {
 function updatePlayer(dt) {
   const p = player;
 
-  const left   = keys['ArrowLeft']  || keys['KeyA'];
-  const right  = keys['ArrowRight'] || keys['KeyD'];
+  const left         = keys['ArrowLeft']  || keys['KeyA'];
+  const right        = keys['ArrowRight'] || keys['KeyD'];
+  const downJust     = keyJustPressed('ArrowDown') || keyJustPressed('KeyS');
+  const jumpPressed  = keyJustPressed('Space') || keyJustPressed('ArrowUp') || keyJustPressed('KeyW');
+  const attackPressed = keyJustPressed('KeyZ') || keyJustPressed('ControlLeft') || keyJustPressed('ControlRight');
+
+  // ── Hiding mechanic ─────────────────────────────────────────────────────
+  if (!p.hiding) {
+    if (downJust && p.onGround) {
+      const nearSpot = hidingSpots.find(s =>
+        Math.abs((p.x + p.w / 2) - (s.x + s.w / 2)) < C.HIDE_RANGE &&
+        Math.abs((p.y + p.h) - (s.y + s.h)) < 24
+      );
+      if (nearSpot) {
+        p.hiding = true; p.hidingAt = nearSpot;
+        p.x = nearSpot.x + (nearSpot.w - p.w) / 2;
+      }
+    }
+  } else if (left || right || jumpPressed || attackPressed || downJust) {
+    p.hiding = false; p.hidingAt = null;
+  }
+
+  if (p.hiding) {
+    p.vx = 0;
+    p.vy += C.GRAVITY * dt;
+    p.y  += p.vy * dt;
+    platformCollision(p);
+    if (p.attackCooldown > 0) p.attackCooldown -= dt;
+    if (p.invincible > 0)     p.invincible     -= dt;
+    if (throwCooldown > 0)    throwCooldown    -= dt;
+    p.state = 'idle'; p.prevState = 'idle';
+    p.animTimer += dt;
+    if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
+    return;
+  }
+
   const crouch = keys['ArrowDown']  || keys['KeyS'];
   p.crouching  = !!(crouch && p.onGround);
   const spd    = p.crouching ? C.CROUCH_SPEED : C.PLAYER_SPEED;
   p.vx = right ? spd : left ? -spd : 0;
   if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
 
-  const jumpPressed = keyJustPressed('Space') || keyJustPressed('ArrowUp') || keyJustPressed('KeyW');
   if (jumpPressed && p.jumpsLeft > 0) {
     const wasDouble = p.jumpsLeft === 1;
     p.vy = C.JUMP_V; p.jumpsLeft--;
@@ -57,10 +90,8 @@ function updatePlayer(dt) {
     else Audio.jump();
   }
 
-  const attackPressed = keyJustPressed('KeyZ') || keyJustPressed('ControlLeft') || keyJustPressed('ControlRight');
   if (attackPressed && p.attackCooldown <= 0) {
     if (gemPower) {
-      // Gem special: radial shockwave damages all visible enemies
       triggerGemSpecial();
     } else {
       p.attacking = true; p.attackTimer = C.ATTACK_DURATION; p.attackCooldown = 0.35;
@@ -71,7 +102,6 @@ function updatePlayer(dt) {
 
   const throwPressed = keyJustPressed('KeyX') || keyJustPressed('ShiftLeft') || keyJustPressed('ShiftRight');
   if (throwPressed && throwCooldown <= 0 && playerWeapon !== 'sword') {
-    // Guard: only throw if projectile starts within visible screen
     const throwX = p.x + p.w / 2 + p.facing * 18;
     if (throwX > cam.x + 20 && throwX < cam.x + C.W - 20) {
       throwWeapon();
@@ -89,7 +119,6 @@ function updatePlayer(dt) {
   p.x  += p.vx * dt;
   p.y  += p.vy * dt;
 
-  // No backtracking: player cannot move left of camera left edge
   if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
 
   platformCollision(p);
@@ -363,7 +392,6 @@ function update(dt) {
   updateShurikens(dt);
   updatePlayerShurikens(dt);
   updateBoss(dt);
-  updateCoins(dt);
   updatePickups(dt);
   updateCamera(dt);
   updateCombo(dt);

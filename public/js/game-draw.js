@@ -1,5 +1,40 @@
 'use strict';
 
+// ── Hiding spot drawing ───────────────────────────────────────────────────────
+function drawBarrel(ctx, x, y, w, h) {
+  ctx.fillStyle = '#5a2d0c';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#7a4020';
+  ctx.fillRect(x, y, w, 6);
+  ctx.fillStyle = '#7a4020';
+  ctx.fillRect(x, y + h - 5, w, 5);
+  ctx.fillStyle = '#2a1208';
+  ctx.fillRect(x, y + 9, w, 3);
+  ctx.fillRect(x, y + h - 12, w, 3);
+  ctx.strokeStyle = '#1a0804'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  ctx.lineWidth = 1;
+}
+
+function drawShadowPool(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.globalAlpha = 0.80;
+  const g = ctx.createRadialGradient(x + w / 2, y + h / 2, 0, x + w / 2, y + h / 2, w / 2);
+  g.addColorStop(0, 'rgba(10,0,20,0.95)');
+  g.addColorStop(0.6, 'rgba(20,0,40,0.7)');
+  g.addColorStop(1, 'rgba(30,0,60,0.0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHidingSpot(ctx, spot) {
+  if (spot.type === 'barrel') drawBarrel(ctx, spot.x, spot.y, spot.w, spot.h);
+  else drawShadowPool(ctx, spot.x, spot.y, spot.w, spot.h);
+}
+
 // ── Enemy detection cone + indicator ─────────────────────────────────────────
 function drawDetectionCone(ctx, e) {
   if (e.aiState === 'patrol') return;
@@ -78,12 +113,15 @@ function draw(dt) {
     drawPlatform(ctx, p);
   }
 
+  // Hiding spots — draw all except the active one (drawn on top of player later)
+  for (const s of hidingSpots) {
+    if (s === player?.hidingAt) continue;
+    if (s.x + s.w < cam.x - 20 || s.x > cam.x + C.W + 20) continue;
+    drawHidingSpot(ctx, s);
+  }
+
   for (const p of particles) p.draw(ctx);
 
-  for (const c of coins) {
-    if (!c.alive || c.x + 20 < cam.x - 30 || c.x > cam.x + C.W + 30) continue;
-    c.draw(ctx);
-  }
   for (const p of pickups) {
     if (!p.alive || p.x + 30 < cam.x - 30 || p.x > cam.x + C.W + 30) continue;
     p.draw(ctx);
@@ -100,8 +138,7 @@ function draw(dt) {
 
   if (boss && boss.alive) drawBoss(ctx, boss);
   if (player) {
-    // Gem power: draw cyan glow halo around player
-    if (gemPower) {
+    if (gemPower && !player.hiding) {
       const pulse = 0.55 + Math.sin(Date.now() * 0.006) * 0.45;
       ctx.save();
       ctx.globalAlpha = pulse * 0.55;
@@ -113,7 +150,15 @@ function draw(dt) {
       ctx.globalAlpha = 1;
       ctx.restore();
     }
-    drawNinjaPlayer(ctx, player);
+    if (player.hiding) {
+      ctx.save(); ctx.globalAlpha = 0.18;
+      drawNinjaPlayer(ctx, player);
+      ctx.restore();
+    } else {
+      drawNinjaPlayer(ctx, player);
+    }
+    // Draw the active hiding spot on top of the player so they appear inside it
+    if (player.hidingAt) drawHidingSpot(ctx, player.hidingAt);
   }
 
   for (const t of floatingTexts) t.draw(ctx);

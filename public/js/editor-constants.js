@@ -21,8 +21,11 @@ const E_TOOLS = [
     { id: 'archer', label: 'Bågskyt',  hint: 'Kräver en plattform under sig.' },
     { id: 'boss',   label: 'BOSS',     hint: 'En per level. Placera vid slutet.' },
   ]},
+  { group: 'Gömställen', items: [
+    { id: 'hiding-barrel', label: 'Tunna',    hint: 'Klicka för att placera en tunna att gömma sig i.' },
+    { id: 'hiding-shadow', label: 'Skugga',   hint: 'Klicka för att placera en skuggpool på marken.' },
+  ]},
   { group: 'Föremål', items: [
-    { id: 'coin',            label: 'Mynt',       hint: 'Klicka för att placera ett mynt.' },
     { id: 'pickup-heart',    label: 'Hjärta',     hint: 'Återställer liv eller ger gem-kraft.' },
     { id: 'pickup-shuriken', label: 'Shuriken',   hint: 'Ger spelaren kaststjärna.' },
     { id: 'pickup-triple',   label: '3× Stjärna', hint: 'Ger trippel-shuriken.' },
@@ -32,15 +35,16 @@ const E_TOOLS = [
 
 // ── Rendering colours ─────────────────────────────────────────────────────────
 const E_COLORS = {
-  platform:          { top: '#6daa30', body: '#3a5a1a', border: '#8aba3a' },
-  grunt:             '#c03030',
-  archer:            '#2050c8',
-  boss:              '#9900cc',
-  coin:              '#c8a83c',
-  'pickup-heart':    '#e63946',
-  'pickup-shuriken': '#b0b0cc',
-  'pickup-triple':   '#ff6b35',
-  'pickup-knife':    '#4fc3f7',
+  platform:           { top: '#6daa30', body: '#3a5a1a', border: '#8aba3a' },
+  grunt:              '#c03030',
+  archer:             '#2050c8',
+  boss:               '#9900cc',
+  'hiding-barrel':    '#7a4020',
+  'hiding-shadow':    '#180028',
+  'pickup-heart':     '#e63946',
+  'pickup-shuriken':  '#b0b0cc',
+  'pickup-triple':    '#ff6b35',
+  'pickup-knife':     '#4fc3f7',
 };
 
 // ── Sky gradients per bgTheme (0/1/2) ─────────────────────────────────────────

@@ -76,6 +76,7 @@ let player        = null;
 let platforms     = [], enemies = [], shurikens = [];
 let particles     = [], floatingTexts = [], petals = [];
 let coins         = [], pickups = [], playerShurikens = [], boss = null;
+let hidingSpots   = [];
 
 // ── Counters & flags ───────────────────────────────────────────────────────────
 let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;

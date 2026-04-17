@@ -68,7 +68,7 @@ function eSyncScrollbar() {
 function eUpdateCounts() {
   const ld = eCurrent(); if (!ld) return;
   document.getElementById('item-counts').textContent =
-    `Plattformar: ${ld.platforms.length}  Fiender: ${ld.enemies.length}  Mynt: ${ld.coins.length}  Föremål: ${ld.pickups.length}`;
+    `Plattformar: ${ld.platforms.length}  Fiender: ${ld.enemies.length}  Gömställen: ${(ld.hidingSpots||[]).length}  Föremål: ${ld.pickups.length}`;
 }
 
 function eSetStatus(msg) {

@@ -94,6 +94,28 @@ function eDrawCoin(ctx, c, viewX, selected) {
   if (selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, c.y, 9, 0, Math.PI * 2); ctx.stroke(); }
 }
 
+function eDrawHidingSpot(ctx, h, viewX, selected) {
+  const sx = h.x - viewX;
+  const W = h.type === 'barrel' ? 28 : 42;
+  const H = h.type === 'barrel' ? 34 : 12;
+  if (sx + W < -20 || sx > ECANVAS_W + 20) return;
+  if (h.type === 'barrel') {
+    ctx.fillStyle = '#5a2d0c'; ctx.fillRect(sx, h.y, W, H);
+    ctx.fillStyle = '#7a4020'; ctx.fillRect(sx, h.y, W, 6);
+    ctx.fillStyle = '#2a1208'; ctx.fillRect(sx, h.y + 9, W, 3); ctx.fillRect(sx, h.y + H - 12, W, 3);
+    ctx.strokeStyle = '#1a0804'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(sx + 0.5, h.y + 0.5, W - 1, H - 1); ctx.lineWidth = 1;
+  } else {
+    ctx.save(); ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#180028';
+    ctx.beginPath(); ctx.ellipse(sx + W/2, h.y + H/2, W/2, H/2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '8px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(h.type === 'barrel' ? 'TUN' : 'SKG', sx + W/2, h.y - 2);
+  if (selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(sx - 2, h.y - 2, W + 4, H + 4); }
+}
+
 function eDrawPickup(ctx, p, viewX, selected) {
   const sx = p.x - viewX;
   if (sx < -20 || sx > ECANVAS_W + 20) return;
@@ -137,8 +159,8 @@ function eRender(ctx) {
   ctx.save(); ctx.textBaseline = 'top';
   for (let i = 0; i < ld.platforms.length; i++)
     eDrawPlatform(ctx, ld.platforms[i], ES.viewX, ES.selected?.col === 'platforms' && ES.selected.idx === i);
-  for (let i = 0; i < ld.coins.length; i++)
-    eDrawCoin(ctx, ld.coins[i], ES.viewX, ES.selected?.col === 'coins' && ES.selected.idx === i);
+  for (let i = 0; i < (ld.hidingSpots || []).length; i++)
+    eDrawHidingSpot(ctx, ld.hidingSpots[i], ES.viewX, ES.selected?.col === 'hidingSpots' && ES.selected.idx === i);
   for (let i = 0; i < ld.pickups.length; i++)
     eDrawPickup(ctx, ld.pickups[i], ES.viewX, ES.selected?.col === 'pickups' && ES.selected.idx === i);
   for (let i = 0; i < ld.enemies.length; i++)
