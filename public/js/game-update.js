@@ -352,7 +352,6 @@ function update(dt) {
     levelCompleteTimer -= dt;
     for (const p of particles)     p.update(dt);
     for (const t of floatingTexts) t.update(dt);
-    for (const p of petals)        p.update(dt);
     particles     = particles.filter(p => p.alive);
     floatingTexts = floatingTexts.filter(t => t.alive);
     return;

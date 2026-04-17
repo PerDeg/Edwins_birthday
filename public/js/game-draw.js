@@ -120,7 +120,6 @@ function draw(dt) {
 
   ctx.restore();
 
-  for (const p of petals) p.draw(ctx);
 
   if (gameState === STATE.PLAYING) {
     HUD.draw(ctx, { lives, score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth });

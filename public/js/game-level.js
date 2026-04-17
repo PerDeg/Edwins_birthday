@@ -9,8 +9,7 @@ function initGame() {
   player        = new Player();
   particles     = [];
   floatingTexts = [];
-  const PETAL_N = window.matchMedia('(pointer: coarse)').matches ? 10 : 25;
-  petals        = Array.from({ length: PETAL_N }, () => new SakuraPetal());
+  petals        = [];
 
   score         = 0;
   combo         = 1;
