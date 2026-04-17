@@ -7,8 +7,12 @@ const Background = (() => {
   let _skyCanvas = null, _skyTheme = -1;
   // Offscreen canvases for pre-rendered parallax layers — rebuilt only on theme change
   let _mountainCanvas = null, _silCanvas = null, _layerTheme = -1;
-  // Cached ground gradient — rebuilt only on theme change (safe to reuse across frames/resizes)
+  // Cached ground gradient — rebuilt only on theme change
   let _groundGrad = null, _groundGradTheme = -1;
+  // Pre-rendered ground surface strip — rebuilt only on theme change.
+  // Width = LUT_SIZE + C.W so a viewport-width blit never goes out of bounds even at the wrap point.
+  let _groundCanvas = null, _groundTheme = -1;
+  const _GROUND_STRIP_H = 30;  // px above/below GROUND_Y covered by the strip
 
   function _rebuildSky() {
     if (!_skyCanvas) {
@@ -117,7 +121,7 @@ const Background = (() => {
     _layerTheme = t;
   }
 
-  function setTheme(t) { _theme = t; _skyTheme = -1; _layerTheme = -1; _groundGradTheme = -1; }
+  function setTheme(t) { _theme = t; _skyTheme = -1; _layerTheme = -1; _groundGradTheme = -1; _groundTheme = -1; }
 
   const WORLD_W = 30000;
 
@@ -249,6 +253,71 @@ const Background = (() => {
     for (let i=0; i<4; i++) ctx.fillRect(t.x + i*24, C.GROUND_Y - t.h - 12, 14, 14);
   }
 
+  // ── Ground strip pre-render ───────────────────────────────────────────────
+  function _rebuildGround() {
+    const t  = _theme;
+    const W  = _BUMP_LUT_SIZE + C.W;   // 9152 — never goes out of bounds at wrap
+    const SH = _GROUND_STRIP_H;
+    const BY = 5;   // y=5 within the strip == C.GROUND_Y in world space
+
+    if (!_groundCanvas) {
+      _groundCanvas = document.createElement('canvas');
+      _groundCanvas.width  = W;
+      _groundCanvas.height = SH;
+    }
+    const gc = _groundCanvas.getContext('2d');
+    gc.clearRect(0, 0, W, SH);
+
+    // Bumpy surface fill
+    const surfCol  = ['#3a5a20','#5a4a20','#3a2a10'][t];
+    const edgeCol  = ['#7aba3a','#8a8a55','#883020'][t];
+    gc.fillStyle = surfCol;
+    gc.beginPath();
+    gc.moveTo(0, SH);
+    for (let wx = 0; wx < W; wx++) {
+      gc.lineTo(wx, BY + 4 + _BUMP_LUT[wx & (_BUMP_LUT_SIZE - 1)]);
+    }
+    gc.lineTo(W, SH);
+    gc.closePath();
+    gc.fill();
+
+    // Surface edge highlight
+    gc.strokeStyle = edgeCol; gc.lineWidth = 2.5;
+    gc.beginPath();
+    for (let wx = 0; wx < W; wx++) {
+      const b = _BUMP_LUT[wx & (_BUMP_LUT_SIZE - 1)];
+      if (wx === 0) gc.moveTo(wx, BY + b); else gc.lineTo(wx, BY + b);
+    }
+    gc.stroke(); gc.lineWidth = 1;
+
+    // Theme surface details
+    if (t === 0) {
+      gc.fillStyle = '#1e3010';
+      for (let wx = 0; wx < W; wx += 38) {
+        const b = _BUMP_LUT[wx & (_BUMP_LUT_SIZE - 1)];
+        gc.fillRect(wx,    BY - 3 + b, 5, 3);
+        gc.fillRect(wx+12, BY - 5 + b, 4, 5);
+        gc.fillRect(wx+24, BY - 2 + b, 5, 2);
+      }
+    } else if (t === 1) {
+      gc.fillStyle = '#4a4a5a';
+      for (let wx = 0; wx < W; wx += 38) {
+        const b = _BUMP_LUT[wx & (_BUMP_LUT_SIZE - 1)];
+        gc.beginPath(); gc.ellipse(wx+4,  BY+3+b, 5, 3, 0,   0, Math.PI*2); gc.fill();
+        gc.beginPath(); gc.ellipse(wx+20, BY+5+b, 7, 4, 0.3, 0, Math.PI*2); gc.fill();
+        gc.beginPath(); gc.ellipse(wx+32, BY+2+b, 4, 3,-0.2, 0, Math.PI*2); gc.fill();
+      }
+    } else {
+      gc.strokeStyle = 'rgba(0,0,0,0.4)'; gc.lineWidth = 1;
+      for (let wx = 0; wx < W; wx += 50) {
+        const b = _BUMP_LUT[wx & (_BUMP_LUT_SIZE - 1)];
+        gc.beginPath(); gc.moveTo(wx, BY+b); gc.lineTo(wx, BY+12+b); gc.stroke();
+      }
+    }
+
+    _groundTheme = t;
+  }
+
   // ── Public draw functions ─────────────────────────────────────────────────
   function drawSky(ctx) {
     let gr;
@@ -309,7 +378,7 @@ const Background = (() => {
   function drawGround(ctx, camX) {
     const theme = _theme;
 
-    // ── Underground depth layers ── (gradient cached per theme)
+    // Underground depth fill (gradient cached per theme — one fillRect)
     if (_groundGradTheme !== theme) {
       _groundGrad = ctx.createLinearGradient(0, C.GROUND_Y, 0, C.H);
       if (theme === 1) {
@@ -330,69 +399,11 @@ const Background = (() => {
     ctx.fillStyle = _groundGrad;
     ctx.fillRect(0, C.GROUND_Y, C.W, C.H - C.GROUND_Y);
 
-    // ── Uneven surface strip ──
-    const surfaceColors = ['#3a5a20','#5a4a20','#3a2a10'];
-    const surfCol = surfaceColors[theme] || surfaceColors[0];
-
-    ctx.fillStyle = surfCol;
-    ctx.beginPath();
-    ctx.moveTo(0, C.H);
-    for (let sx = 0; sx <= C.W + 8; sx += 8) {
-      const wx = sx + camX;
-      const bump = groundBump(wx);
-      ctx.lineTo(sx, C.GROUND_Y + 4 + bump);
-    }
-    ctx.lineTo(C.W, C.H);
-    ctx.closePath();
-    ctx.fill();
-
-    // ── Surface edge highlight ──
-    const edgeColors = ['#7aba3a','#8a8a55','#883020'];
-    ctx.strokeStyle = edgeColors[theme] || edgeColors[0];
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    for (let sx = 0; sx <= C.W; sx += 8) {
-      const wx = sx + camX;
-      const bump = groundBump(wx);
-      if (sx === 0) ctx.moveTo(sx, C.GROUND_Y + bump);
-      else ctx.lineTo(sx, C.GROUND_Y + bump);
-    }
-    ctx.stroke();
-    ctx.lineWidth = 1;
-
-    // ── Theme surface details ──
-    const step = Math.floor(camX / 38) * 38;
-    if (theme === 0) {
-      // Grass tufts
-      ctx.fillStyle = '#1e3010';
-      for (let gx = step; gx < camX + C.W + 38; gx += 38) {
-        const sx = gx - camX;
-        const b = groundBump(gx);
-        ctx.fillRect(sx,    C.GROUND_Y - 3 + b, 5,  3);
-        ctx.fillRect(sx+12, C.GROUND_Y - 5 + b, 4,  5);
-        ctx.fillRect(sx+24, C.GROUND_Y - 2 + b, 5,  2);
-      }
-    } else if (theme === 1) {
-      // Pebbles / stone line
-      ctx.fillStyle = '#4a4a5a';
-      for (let gx = step; gx < camX + C.W + 38; gx += 38) {
-        const sx = gx - camX;
-        const b = groundBump(gx);
-        ctx.beginPath(); ctx.ellipse(sx+4,  C.GROUND_Y + 3 + b, 5,3, 0, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sx+20, C.GROUND_Y + 5 + b, 7,4, 0.3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sx+32, C.GROUND_Y + 2 + b, 4,3, -0.2, 0, Math.PI*2); ctx.fill();
-      }
-    } else {
-      // Stone tile cracks
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-      ctx.lineWidth = 1;
-      for (let gx = step; gx < camX + C.W + 50; gx += 50) {
-        const sx = gx - camX;
-        const b = groundBump(gx);
-        ctx.beginPath(); ctx.moveTo(sx, C.GROUND_Y + b); ctx.lineTo(sx, C.GROUND_Y + 12 + b); ctx.stroke();
-      }
-      ctx.lineWidth = 1;
-    }
+    // Bumpy surface strip — one drawImage from pre-rendered canvas (no per-frame paths/ellipses)
+    if (_groundTheme !== theme) _rebuildGround();
+    const srcX = (camX | 0) & (_BUMP_LUT_SIZE - 1);
+    ctx.drawImage(_groundCanvas, srcX, 0, C.W, _GROUND_STRIP_H,
+                  0, C.GROUND_Y - 5, C.W, _GROUND_STRIP_H);
   }
 
   // Unified call: uses bg image + ground when available, else programmatic with cached layers.

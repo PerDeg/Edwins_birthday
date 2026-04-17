@@ -18,12 +18,8 @@ function drawBarrel(ctx, x, y, w, h) {
 
 function drawShadowPool(ctx, x, y, w, h) {
   ctx.save();
-  ctx.globalAlpha = 0.80;
-  const g = ctx.createRadialGradient(x + w / 2, y + h / 2, 0, x + w / 2, y + h / 2, w / 2);
-  g.addColorStop(0, 'rgba(10,0,20,0.95)');
-  g.addColorStop(0.6, 'rgba(20,0,40,0.7)');
-  g.addColorStop(1, 'rgba(30,0,60,0.0)');
-  ctx.fillStyle = g;
+  ctx.globalAlpha = 0.76;
+  ctx.fillStyle = '#0a0014';
   ctx.beginPath();
   ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
   ctx.fill();

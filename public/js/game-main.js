@@ -6,8 +6,6 @@ const ctx    = canvas.getContext('2d', { alpha: false });
 let scale = 1;
 
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
-  // Use visualViewport when available so layout tracks the browser chrome hiding/showing
   const vw  = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
   const vh  = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const sx  = vw / C.W;
@@ -18,10 +16,12 @@ function resize() {
   canvas.style.height  = ch + 'px';
   canvas.style.left    = (vw - cw) / 2 + 'px';
   canvas.style.top     = (vh - ch) / 2 + 'px';
-  canvas.width  = Math.round(cw * dpr);
-  canvas.height = Math.round(ch * dpr);
-  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
-  ctx.imageSmoothingEnabled = false;   // pixel-perfect sprites
+  // Render at fixed logical resolution — CSS handles DPR upscaling.
+  // Avoids rendering at 2880×1620 (4× work) on high-DPI / scaled displays.
+  canvas.width  = C.W;
+  canvas.height = C.H;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
