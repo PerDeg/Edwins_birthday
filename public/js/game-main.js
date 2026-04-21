@@ -16,11 +16,11 @@ function resize() {
   canvas.style.height  = ch + 'px';
   canvas.style.left    = (vw - cw) / 2 + 'px';
   canvas.style.top     = (vh - ch) / 2 + 'px';
-  // Render at fixed logical resolution — CSS handles DPR upscaling.
-  // Avoids rendering at 2880×1620 (4× work) on high-DPI / scaled displays.
-  canvas.width  = C.W;
-  canvas.height = C.H;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // Cap DPR at 1.5 — crisp on Retina without the 4× pixel cost of full DPR
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  canvas.width  = Math.round(C.W * dpr);
+  canvas.height = Math.round(C.H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener('resize', resize);

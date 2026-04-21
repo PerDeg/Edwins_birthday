@@ -117,6 +117,41 @@ function drawNinjaPlayer(ctx, p) {
   ctx.restore();
 }
 
+// ── Grunt sprite cache (4 anim frames, pre-rendered) ─────────────────────────
+let _gruntCache = null;
+function _buildGruntCache() {
+  if (_gruntCache) return;
+  const CW = 64, CH = 80, OX = 32, OY = 18;
+  const w = 28, h = 48;
+  _gruntCache = [];
+  for (let f = 0; f < 4; f++) {
+    const oc = document.createElement('canvas');
+    oc.width = CW; oc.height = CH;
+    const sc = oc.getContext('2d');
+    sc.translate(OX, OY);
+    const legSwing = Math.sin(f * Math.PI * 2.2) * 12;
+    const armSwing = -legSwing * 0.5;
+    const DARK_RED = '#5c1010', MED_RED = '#7a1c1c';
+    sc.fillStyle = DARK_RED;
+    sc.save(); sc.translate(-3, h*0.52); sc.rotate((-legSwing*Math.PI)/180);
+    sc.fillRect(-4, 0, 8, h*0.50); sc.restore();
+    sc.save(); sc.translate(3, h*0.52); sc.rotate((legSwing*Math.PI)/180);
+    sc.fillRect(-4, 0, 8, h*0.50); sc.restore();
+    sc.fillStyle = MED_RED;
+    sc.fillRect(-w*0.48, h*0.16, w*0.96, h*0.38);
+    sc.fillStyle = DARK_RED;
+    sc.save(); sc.translate(-w*0.4, h*0.22); sc.rotate((armSwing*Math.PI)/180);
+    sc.fillRect(-4, 0, 8, h*0.32); sc.restore();
+    sc.save(); sc.translate(w*0.4, h*0.22); sc.rotate((-armSwing*Math.PI)/180);
+    sc.fillRect(-4, 0, 8, h*0.32); sc.restore();
+    sc.fillStyle = MED_RED;
+    sc.beginPath(); sc.ellipse(0, h*0.10, w*0.40, h*0.20, 0, 0, Math.PI*2); sc.fill();
+    sc.fillStyle = '#ff4444';
+    sc.beginPath(); sc.arc(w*0.14, h*0.08, 2.5, 0, Math.PI*2); sc.fill();
+    _gruntCache[f] = oc;
+  }
+}
+
 function drawGrunt(ctx, e) {
   const { x, y, w, h, facing, animFrame } = e;
 
@@ -127,42 +162,42 @@ function drawGrunt(ctx, e) {
     if (Sprites.draw(ctx, 'grunt-run', frame, 32, 32, dx, dy, DW, DH, facing < 0)) return;
   }
 
-  const legSwing = Math.sin(animFrame * Math.PI * 2.2) * 12;
-
+  _buildGruntCache();
   ctx.save();
   ctx.translate(x + w / 2, y);
   if (facing < 0) ctx.scale(-1, 1);
-
-  const DARK_RED = '#5c1010';
-  const MED_RED  = '#7a1c1c';
-
-  // Legs
-  ctx.fillStyle = DARK_RED;
-  ctx.save(); ctx.translate(-3, h * 0.52); ctx.rotate((-legSwing * Math.PI) / 180);
-  ctx.fillRect(-4, 0, 8, h * 0.50); ctx.restore();
-  ctx.save(); ctx.translate(3, h * 0.52); ctx.rotate((legSwing * Math.PI) / 180);
-  ctx.fillRect(-4, 0, 8, h * 0.50); ctx.restore();
-
-  // Body – stockier
-  ctx.fillStyle = MED_RED;
-  ctx.fillRect(-w * 0.48, h * 0.16, w * 0.96, h * 0.38);
-
-  // Arms
-  ctx.fillStyle = DARK_RED;
-  const armSwing = -legSwing * 0.5;
-  ctx.save(); ctx.translate(-w*0.4, h*0.22); ctx.rotate((armSwing * Math.PI)/180);
-  ctx.fillRect(-4, 0, 8, h * 0.32); ctx.restore();
-  ctx.save(); ctx.translate(w*0.4, h*0.22); ctx.rotate((-armSwing * Math.PI)/180);
-  ctx.fillRect(-4, 0, 8, h * 0.32); ctx.restore();
-
-  // Head
-  ctx.fillStyle = MED_RED;
-  ctx.beginPath(); ctx.ellipse(0, h * 0.10, w * 0.40, h * 0.20, 0, 0, Math.PI * 2); ctx.fill();
-  // Eyes
-  ctx.fillStyle = '#ff4444';
-  ctx.beginPath(); ctx.arc(w * 0.14, h * 0.08, 2.5, 0, Math.PI * 2); ctx.fill();
-
+  ctx.drawImage(_gruntCache[animFrame], -32, -18, 64, 80);
   ctx.restore();
+}
+
+// ── Archer sprite cache (static, pre-rendered once) ──────────────────────────
+let _archerCache = null;
+function _buildArcherCache() {
+  if (_archerCache) return;
+  const CW = 80, CH = 72, OX = 40, OY = 8;
+  const w = 28, h = 48;
+  const oc = document.createElement('canvas');
+  oc.width = CW; oc.height = CH;
+  const sc = oc.getContext('2d');
+  sc.translate(OX, OY);
+  sc.fillStyle = '#2a2a5a';
+  sc.fillRect(-w*0.4, h*0.16, w*0.8, h*0.38);
+  sc.fillStyle = '#1a1a3a';
+  sc.fillRect(-w*0.28, h*0.54, 10, h*0.46);
+  sc.fillRect(w*0.10,  h*0.54, 10, h*0.46);
+  sc.save(); sc.translate(w*0.38, h*0.26);
+  sc.strokeStyle = '#8b6914'; sc.lineWidth = 3;
+  sc.beginPath(); sc.arc(0, 0, 22, -0.9, 0.9); sc.stroke();
+  sc.strokeStyle = '#ddd'; sc.lineWidth = 1;
+  sc.beginPath();
+  sc.moveTo(22*Math.cos(-0.9), 22*Math.sin(-0.9));
+  sc.lineTo(22*Math.cos(0.9),  22*Math.sin(0.9));
+  sc.stroke(); sc.restore();
+  sc.fillStyle = '#2a2a5a';
+  sc.beginPath(); sc.ellipse(0, h*0.10, w*0.36, h*0.20, 0, 0, Math.PI*2); sc.fill();
+  sc.fillStyle = '#ffcc00';
+  sc.beginPath(); sc.arc(w*0.14, h*0.08, 2.5, 0, Math.PI*2); sc.fill();
+  _archerCache = oc;
 }
 
 function drawArcher(ctx, e) {
@@ -174,35 +209,11 @@ function drawArcher(ctx, e) {
     if (Sprites.draw(ctx, 'archer-idle', 0, 32, 32, dx, dy, DW, DH, facing < 0)) return;
   }
 
+  _buildArcherCache();
   ctx.save();
   ctx.translate(x + w / 2, y);
   if (facing < 0) ctx.scale(-1, 1);
-
-  // Body
-  ctx.fillStyle = '#2a2a5a';
-  ctx.fillRect(-w * 0.4, h * 0.16, w * 0.8, h * 0.38);
-  // Legs
-  ctx.fillStyle = '#1a1a3a';
-  ctx.fillRect(-w * 0.28, h * 0.54, 10, h * 0.46);
-  ctx.fillRect(w * 0.10,  h * 0.54, 10, h * 0.46);
-  // Bow arm
-  ctx.save(); ctx.translate(w * 0.38, h * 0.26);
-  ctx.strokeStyle = '#8b6914'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(0, 0, 22, -0.9, 0.9); ctx.stroke();
-  // String
-  ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(22 * Math.cos(-0.9), 22 * Math.sin(-0.9));
-  ctx.lineTo(22 * Math.cos(0.9),  22 * Math.sin(0.9));
-  ctx.stroke();
-  ctx.lineWidth = 1;
-  ctx.restore();
-  // Head
-  ctx.fillStyle = '#2a2a5a';
-  ctx.beginPath(); ctx.ellipse(0, h * 0.10, w * 0.36, h * 0.20, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffcc00'; // yellow eyes
-  ctx.beginPath(); ctx.arc(w * 0.14, h * 0.08, 2.5, 0, Math.PI * 2); ctx.fill();
-
+  ctx.drawImage(_archerCache, -40, -8, 80, 72);
   ctx.restore();
 }
 

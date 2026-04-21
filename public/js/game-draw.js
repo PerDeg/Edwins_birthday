@@ -85,8 +85,20 @@ function drawPlatform(ctx, p) {
   ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
 }
 
+// ── FPS counter ───────────────────────────────────────────────────────────────
+let _fpsCount = 0, _fpsAccum = 0, _fpsDisplay = 0;
+
 // ── Main draw ──────────────────────────────────────────────────────────────────
 function draw(dt) {
+  if (dt > 0) {
+    _fpsCount++;
+    _fpsAccum += dt;
+    if (_fpsAccum >= 0.5) {
+      _fpsDisplay = Math.round(_fpsCount / _fpsAccum);
+      _fpsCount = 0; _fpsAccum = 0;
+    }
+  }
+
   ctx.clearRect(0, 0, C.W, C.H);
 
   if (gameState === STATE.MENU) {
@@ -116,7 +128,10 @@ function draw(dt) {
     drawHidingSpot(ctx, s);
   }
 
-  for (const p of particles) p.draw(ctx);
+  for (const p of particles) {
+    if (p.x < cam.x - 60 || p.x > cam.x + C.W + 60) continue;
+    p.draw(ctx);
+  }
 
   for (const p of pickups) {
     if (!p.alive || p.x + 30 < cam.x - 30 || p.x > cam.x + C.W + 30) continue;
@@ -129,8 +144,14 @@ function draw(dt) {
     e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
   }
 
-  for (const s of shurikens)       drawShuriken(ctx, s.x, s.y, s.rot);
-  for (const s of playerShurikens) s.draw(ctx);
+  for (const s of shurikens) {
+    if (s.x < cam.x - 40 || s.x > cam.x + C.W + 40) continue;
+    drawShuriken(ctx, s.x, s.y, s.rot);
+  }
+  for (const s of playerShurikens) {
+    if (s.x < cam.x - 40 || s.x > cam.x + C.W + 40) continue;
+    s.draw(ctx);
+  }
 
   if (boss && boss.alive) drawBoss(ctx, boss);
   if (player) {
@@ -178,4 +199,12 @@ function draw(dt) {
 
   UI.drawHitFlash(ctx, screenFlash);
   UI.drawLevelUp(ctx, dt, level);
+
+  // FPS overlay
+  ctx.save();
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = _fpsDisplay > 0 && _fpsDisplay < 40 ? '#ff6060' : '#00e070';
+  ctx.fillText(_fpsDisplay + ' fps', C.W - 4, 13);
+  ctx.restore();
 }
