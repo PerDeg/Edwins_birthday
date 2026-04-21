@@ -85,8 +85,10 @@ function drawPlatform(ctx, p) {
   ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
 }
 
-// ── FPS counter ───────────────────────────────────────────────────────────────
+// ── FPS / frame-time counters ─────────────────────────────────────────────────
 let _fpsCount = 0, _fpsAccum = 0, _fpsDisplay = 0;
+// Timing set by the game loop (game-main.js)
+let _diagUpdateMs = 0, _diagDrawMs = 0;
 
 // ── Main draw ──────────────────────────────────────────────────────────────────
 function draw(dt) {
@@ -108,13 +110,13 @@ function draw(dt) {
 
   Background.drawBackground(ctx, cam.x);
 
-  ctx.save();
-  ctx.translate(-cam.x + cam.shake, cam.shake * 0.4);
-
-  // Skip programmatic ground when the level bg image (which includes its own ground) is loaded
+  // Ground drawn in screen-space (before camera translate) so it always covers full width
   if (typeof Sprites === 'undefined' || !Sprites.has('bg-level' + (bgTheme + 1))) {
     Background.drawGround(ctx, cam.x);
   }
+
+  ctx.save();
+  ctx.translate(-cam.x + cam.shake, cam.shake * 0.4);
 
   for (const p of platforms) {
     if (p.x + p.w < cam.x - 20 || p.x > cam.x + C.W + 20) continue;
@@ -200,11 +202,13 @@ function draw(dt) {
   UI.drawHitFlash(ctx, screenFlash);
   UI.drawLevelUp(ctx, dt, level);
 
-  // FPS overlay
+  // FPS + frame-time overlay
   ctx.save();
   ctx.font = '11px monospace';
   ctx.textAlign = 'right';
   ctx.fillStyle = _fpsDisplay > 0 && _fpsDisplay < 40 ? '#ff6060' : '#00e070';
   ctx.fillText(_fpsDisplay + ' fps', C.W - 4, 13);
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText(`upd:${_diagUpdateMs.toFixed(1)}ms drw:${_diagDrawMs.toFixed(1)}ms`, C.W - 4, 25);
   ctx.restore();
 }

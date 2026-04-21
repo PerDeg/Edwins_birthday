@@ -200,8 +200,14 @@ function loop(now) {
   const dt = lastTime === 0 ? 0 : Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
+  const _t0 = performance.now();
   update(dt);
+  const _t1 = performance.now();
   draw(dt);
+  const _t2 = performance.now();
+  // Smooth the readings with EMA so the display is readable
+  _diagUpdateMs = _diagUpdateMs * 0.85 + (_t1 - _t0) * 0.15;
+  _diagDrawMs   = _diagDrawMs   * 0.85 + (_t2 - _t1) * 0.15;
 
   if (gameState === STATE.LEVEL_COMPLETE && levelCompleteTimer <= 0) {
     advanceNextLevel();

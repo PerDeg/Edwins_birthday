@@ -19,7 +19,7 @@ const Background = (() => {
       _skyCanvas = document.createElement('canvas');
       _skyCanvas.width = C.W; _skyCanvas.height = C.H;
     }
-    const sc = _skyCanvas.getContext('2d');
+    const sc = _skyCanvas.getContext('2d', { alpha: false });
     sc.clearRect(0, 0, C.W, C.H);
     // Duplicate sky-drawing logic onto offscreen canvas
     const t = _theme;
