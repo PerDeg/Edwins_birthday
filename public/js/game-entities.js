@@ -387,6 +387,11 @@ class Grunt {
           }
         }
       }
+      // Gravity keeps patrol grunts on their platform surface
+      this.onGround = false;
+      this.vy += C.GRAVITY * dt;
+      this.y  += this.vy * dt;
+      _enemyGroundCollision(this);
     }
     const isMoving = this.aiState === 'alert' || (this.aiState !== 'patrol' && this.aiState !== 'return') ||
                      (this.patrolWait <= 0 && this.aiState === 'patrol');
@@ -409,14 +414,21 @@ class Archer {
     this.type  = 'archer';
     this.hp    = C.ENEMY_HP_ARCHER;
     this.maxHp = C.ENEMY_HP_ARCHER;
-    // Slow patrol — TODO: tweak speed per level difficulty
     this.vx = (Math.random() > 0.5 ? 1 : -1) * 30 * speedMul;
+    this.vy       = 0;
+    this.onGround = false;
     this.animFrame = 0;
     this.animTimer = 0;
   }
   update(dt, player, shurikens) {
-    // Slow patrol movement
-    this.x += this.vx * dt;
+    // Physics: same gravity system as ninja
+    this.onGround = false;
+    this.vy += C.GRAVITY * dt;
+    this.x  += this.vx * dt;
+    this.y  += this.vy * dt;
+    _enemyGroundCollision(this);
+
+    // Patrol within platform bounds
     const { x: px, w: pw } = this.platform;
     if (this.x < px + 6 || this.x + this.w > px + pw - 6) {
       this.vx *= -1;
@@ -712,6 +724,9 @@ class Boss {
     this.aiTimer = 2.2;   // intro delay
     this.invincible = 0;
     this.seenByPlayer = false;
+    // Shield: cycles OFF→ON→OFF. Starts in OFF so fight opens with an attack window.
+    this.shieldActive  = false;
+    this.shieldTimer   = 0;     // position in the cycle
   }
   get phase2() { return this.hp <= Math.ceil(this.maxHp / 2); }
 
@@ -720,6 +735,13 @@ class Boss {
     this.animTimer += dt;
     if (this.animTimer > 0.12) { this.animFrame = (this.animFrame + 1) % 8; this.animTimer = 0; }
     if (this.invincible > 0) this.invincible -= dt;
+
+    // Shield cycle: OFF for offDur → ON for onDur → repeat
+    const shOffDur = this.phase2 ? 1.4 : 2.0;
+    const shOnDur  = this.phase2 ? 2.6 : 2.2;
+    const shCycle  = shOffDur + shOnDur;
+    this.shieldTimer = (this.shieldTimer + dt) % shCycle;
+    this.shieldActive = this.shieldTimer >= shOffDur;
 
     // Dodge incoming player projectiles
     if (this.onGround && this.invincible <= 0 && playerShurikens) {
@@ -926,6 +948,29 @@ function drawBoss(ctx, boss) {
     ctx.beginPath(); ctx.arc(-w*0.18, h*0.07, 5, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc( w*0.18, h*0.07, 5, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
+  }
+
+  // ── Shield overlay (all boss types) ────────────────────────────────────────
+  if (boss.shieldActive) {
+    const shOffDur = boss.phase2 ? 1.4 : 2.0;
+    const shOnDur  = boss.phase2 ? 2.6 : 2.2;
+    const timeLeft = (shOffDur + shOnDur) - boss.shieldTimer;
+    // Flicker as shield is about to drop
+    const visible  = timeLeft > 0.5 || (Math.floor(timeLeft * 14) % 2 === 0);
+    if (visible) {
+      const pulse = 0.55 + Math.sin(Date.now() * 0.009) * 0.25;
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle   = '#3388ff';
+      ctx.strokeStyle = '#aaddff';
+      ctx.lineWidth   = 2.5;
+      // Shield faces the boss's front (+x in local coords after facing scale)
+      ctx.beginPath();
+      ctx.ellipse(w * 0.60, h * 0.36, 15, 36, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   ctx.restore();

@@ -111,8 +111,10 @@ function updatePlayer(dt) {
   if (p.invincible > 0)       p.invincible     -= dt;
   if (throwCooldown > 0)      throwCooldown    -= dt;
 
+  // Variable jump height: heavier gravity when jump key released while rising
+  const jumpHeld = !!(keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
   p.onGround = false;
-  p.vy += C.GRAVITY * dt;
+  p.vy += C.GRAVITY * ((!jumpHeld && p.vy < 0) ? 3.5 : 1.0) * dt;
   p.x  += p.vx * dt;
   p.y  += p.vy * dt;
 
@@ -294,12 +296,21 @@ function updatePlayerShurikens(dt) {
     if (!s.alive) continue;
 
     if (boss && boss.alive && !s.hitSet.has(boss) && rectsOverlap(s.bounds(), boss.bounds())) {
-      if (boss.takeDamage()) {
+      if (boss.shieldActive) {
+        // Shield blocks thrown weapons — spark and sound
+        s.alive = false;
+        emitHit(particles, s.x, s.y);
+        Audio.shieldBlock();
+        triggerShake(3, 0.12);
+      } else if (boss.takeDamage()) {
         emitHit(particles, boss.x + boss.w/2, boss.y + boss.h/2);
         if (boss.hp <= 0) killBoss();
+        if (!s.piercing) { s.alive = false; continue; }
+        s.hitSet.add(boss);
+      } else {
+        if (!s.piercing) { s.alive = false; continue; }
+        s.hitSet.add(boss);
       }
-      if (!s.piercing) { s.alive = false; continue; }
-      s.hitSet.add(boss);
     }
 
     for (const e of enemies) {
