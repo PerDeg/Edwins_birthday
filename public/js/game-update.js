@@ -101,12 +101,9 @@ function updatePlayer(dt) {
   }
 
   const throwPressed = keyJustPressed('KeyX') || keyJustPressed('ShiftLeft') || keyJustPressed('ShiftRight');
-  if (throwPressed && throwCooldown <= 0 && playerWeapon !== 'sword') {
-    const throwX = p.x + p.w / 2 + p.facing * 18;
-    if (throwX > cam.x + 20 && throwX < cam.x + C.W - 20) {
-      throwWeapon();
-      throwCooldown = C.THROW_COOLDOWN;
-    }
+  if (throwPressed && throwCooldown <= 0 && playerWeapon !== 'sword' && throwAmmo > 0) {
+    throwWeapon();
+    throwCooldown = C.THROW_COOLDOWN;
   }
 
   if (p.attackTimer > 0)    { p.attackTimer    -= dt; if (p.attackTimer  <= 0) p.attacking = false; }
@@ -152,6 +149,8 @@ function throwWeapon() {
   } else {
     playerShurikens.push(new PlayerShuriken(cx, cy, player.facing, playerWeapon === 'knife' ? 'knife' : 'shuriken'));
   }
+  throwAmmo--;
+  if (throwAmmo <= 0) { throwAmmo = 0; playerWeapon = 'sword'; }
   Audio.slash();
 }
 
@@ -245,6 +244,10 @@ function killEnemy(e, stealth = false) {
 // ── Boss ────────────────────────────────────────────────────────────────────────
 function updateBoss(dt) {
   if (!boss || !boss.alive) return;
+  if (!boss.seenByPlayer && boss.x < cam.x + C.W && boss.x + boss.w > cam.x) {
+    boss.seenByPlayer = true;
+    Audio.bossFight();
+  }
   boss.update(dt, player, shurikens, playerShurikens);
 
   if (player.invincible <= 0 && rectsOverlap(player.bounds(), boss.bounds())) damagePlayer();
@@ -261,6 +264,7 @@ function updateBoss(dt) {
 
 function killBoss() {
   boss.alive = false; kills++;
+  Audio.stopBoss();
   score += C.BOSS_KILL_SCORE + C.LEVEL_CLEAR_BONUS;
   for (let i = 0; i < 3; i++)
     emitEnemyDeath(particles, boss.x + boss.w/2 + (i-1)*24, boss.y + boss.h/2 - i*10);
@@ -354,8 +358,9 @@ function updatePickups(dt) {
         }
       } else {
         playerWeapon = p.type;
+        throwAmmo = C.THROW_AMMO;
         floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, labels[p.type] || p.type, '#4fc3f7', 1.2));
-        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, 'TRYCK X FÖR ATT KASTA', 'rgba(255,255,255,0.75)', 0.78));
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, `TRYCK X  ×${C.THROW_AMMO}`, 'rgba(255,255,255,0.75)', 0.78));
         Audio.djump();
       }
     }

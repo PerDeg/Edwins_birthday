@@ -122,6 +122,36 @@ const Audio = (() => {
   }
 
   let _phrase = 0;
+  let _bossMode = false, _bossTimeout = null;
+
+  // Boss theme: 148 BPM, denser drums, heavier bass, shorter urgent phrases
+  const BBPM = 148;
+  const BB   = 60 / BBPM;
+  const BS   = BB / 2;
+  const BOSS_MELODY = [
+    [N.B4,0,1],[N.A4,2,0.8],[N.G4,3,1],[N.E4,5,0.8],
+    [N.B4,6,0.8],[N.D4,7,0.5],[N.E4,8,1.5],[N.G4,11,0.5],
+    [N.A4,12,1],[N.G4,14,0.8],[N.B4,15,1.5],[N.G4,18,0.5],
+    [N.E4,19,1],[N.D4,21,0.8],[N.B3,22,2.5],
+  ];
+  const BOSS_BASS = [
+    [N.E2,0,3.5],[N.B2,8,3.5],[N.A2,16,3.5],[N.E2,24,3.5],
+  ];
+  const BOSS_DRUMS = [];
+  for (let i = 0; i < 4; i++) {
+    const o = i * 8;
+    for (let k = 0; k < 8; k++)
+      BOSS_DRUMS.push([o + k, k % 4 === 0 ? 0.85 : k % 2 === 0 ? 0.55 : 0.32]);
+  }
+
+  function scheduleBoss() {
+    if (!_bossMode) return;
+    const loopDur = 32 * BS;
+    BOSS_MELODY.forEach(([hz, idx, dur]) => flute(hz, BS * dur * 0.8, 0.17, BS * idx));
+    BOSS_BASS.forEach(([hz, idx, dur])   => tone(hz, 'sawtooth', BB * dur * 0.7, 0.24, BS * idx));
+    BOSS_DRUMS.forEach(([idx, vol])       => taiko(BS * idx, vol));
+    _bossTimeout = setTimeout(scheduleBoss, loopDur * 1000 - 20);
+  }
 
   function scheduleMelody() {
     if (!_started) return;
@@ -150,7 +180,20 @@ const Audio = (() => {
     },
     stop() {
       _started = false;
+      _bossMode = false;
       clearTimeout(_musicTimeout);
+      clearTimeout(_bossTimeout);
+    },
+    bossFight() {
+      if (_bossMode) return;
+      _bossMode = true;
+      clearTimeout(_musicTimeout);
+      scheduleBoss();
+    },
+    stopBoss() {
+      _bossMode = false;
+      clearTimeout(_bossTimeout);
+      if (_started) { _phrase = 0; scheduleMelody(); }
     },
     slash()  { tone(900, 'sawtooth', 0.06, 0.32); tone(450, 'square', 0.04, 0.16, 0.02); },
     jump()   { tone(220, 'sine', 0.16, 0.22, 0, 480); },

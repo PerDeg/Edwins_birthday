@@ -244,6 +244,15 @@ class Player {
     return this.attacking && this.attackTimer > C.ATTACK_DURATION * 0.4;
   }
   attackHitbox() {
+    // Knife: wide sweep covering both sides (close-combat reach behind and below)
+    if (typeof playerWeapon !== 'undefined' && playerWeapon === 'knife') {
+      return {
+        x: this.x - C.ATTACK_HITBOX_W * 0.55,
+        y: this.y + 2,
+        w: this.w + C.ATTACK_HITBOX_W * 1.1,
+        h: C.ATTACK_HITBOX_H + 12,
+      };
+    }
     const ox = this.facing > 0 ? this.x + this.w : this.x - C.ATTACK_HITBOX_W;
     return { x: ox, y: this.y + 8, w: C.ATTACK_HITBOX_W, h: C.ATTACK_HITBOX_H };
   }
@@ -285,7 +294,8 @@ class Grunt {
     const sees  = this.canSeePlayer(player);
     const dist  = Math.hypot(player.x + player.w / 2 - this.x - this.w / 2,
                              player.y + player.h / 2 - this.y - this.h / 2);
-    const heard = !player.crouching && !player.hiding && player.state === 'run' && dist < C.HEAR_RANGE;
+    const heard = !player.crouching && !player.hiding && player.state === 'run' &&
+                  dist < C.HEAR_RANGE && Math.abs((player.y + player.h) - this.platform.y) <= 24;
     const rate  = player.crouching ? 0.30 : (heard ? 2.5 : 1.0);
 
     if (this.aiState === 'patrol' || this.aiState === 'suspect') {
@@ -598,6 +608,7 @@ class PlayerShuriken {
     this.piercing = (type === 'knife');
     const speed   = type === 'knife' ? C.KNIFE_SPEED : C.SHURIKEN_SPEED;
     this.x = x; this.y = y;
+    this.startX = x;
     this.vx = facing * speed * Math.cos(angleOffset);
     this.vy = speed  * Math.sin(angleOffset);
     // Kunai.png points UP (north = 0). Offset so tip faces travel direction, then tumbles.
@@ -612,7 +623,8 @@ class PlayerShuriken {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.rot += (this.vx > 0 ? 1 : -1) * (this.type === 'knife' ? 5 : 14) * dt;
-    if (this.x < -300 || this.x > 8000 || this.y > C.H + 100 || this.y < -100) this.alive = false;
+    if (Math.abs(this.x - this.startX) > C.THROW_RANGE) this.alive = false;
+    if (this.y > C.H + 100 || this.y < -100) this.alive = false;
   }
   draw(ctx) {
     if (this.type === 'knife') {
@@ -666,6 +678,7 @@ class Boss {
     this.aiState = 'idle';
     this.aiTimer = 2.2;   // intro delay
     this.invincible = 0;
+    this.seenByPlayer = false;
   }
   get phase2() { return this.hp <= Math.ceil(this.maxHp / 2); }
 
@@ -692,6 +705,7 @@ class Boss {
       }
     }
 
+    this.onGround = false;
     this.vy += C.GRAVITY * dt;
     this.x  += this.vx * dt;
     this.y  += this.vy * dt;

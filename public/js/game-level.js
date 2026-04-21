@@ -20,6 +20,7 @@ function initGame() {
   playerWeapon  = 'sword';
   gemPower      = false;
   throwCooldown = 0;
+  throwAmmo     = 0;
 
   loadLevel(0);
   gameState = STATE.PLAYING;

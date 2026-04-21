@@ -31,21 +31,12 @@ function drawHidingSpot(ctx, spot) {
   else drawShadowPool(ctx, spot.x, spot.y, spot.w, spot.h);
 }
 
-// ── Enemy detection cone + indicator ─────────────────────────────────────────
+// ── Enemy detection indicator (no visible cone box) ──────────────────────────
 function drawDetectionCone(ctx, e) {
   if (e.aiState === 'patrol') return;
-  const cx = e.x + e.w / 2;
+  const cx  = e.x + e.w / 2;
+  const pct = e.aiState === 'suspect' ? e.detectTimer / C.DETECTION_TIME : 1;
 
-  // Cone fill — yellow for suspect, red for alert
-  const pct   = e.aiState === 'suspect' ? e.detectTimer / C.DETECTION_TIME : 1;
-  const alpha = e.aiState === 'alert' ? 0.18 : 0.13 * pct;
-  ctx.fillStyle = e.aiState === 'alert'
-    ? `rgba(255,50,50,${alpha})`
-    : `rgba(255,210,0,${alpha})`;
-  const x0 = e.facing > 0 ? cx : cx - C.DETECTION_RANGE;
-  ctx.fillRect(x0, e.y - 24, C.DETECTION_RANGE, e.h + 48);
-
-  // "?" / "!" above head
   const label = e.aiState === 'alert' ? '!' : '?';
   const col   = e.aiState === 'alert' ? '#ff4040' : '#ffdd00';
   ctx.save();
@@ -54,7 +45,6 @@ function drawDetectionCone(ctx, e) {
   ctx.fillStyle = col;
   ctx.fillText(label, cx, e.y - 16);
 
-  // Progress bar (suspect only)
   if (e.aiState === 'suspect') {
     const bw = 28, bh = 4, bx = cx - 14, by = e.y - 9;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';

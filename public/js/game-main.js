@@ -83,6 +83,7 @@ let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
 let screenFlash      = 0;
 let playerWeapon     = 'sword';   // 'sword'|'shuriken'|'triple'|'knife'
 let throwCooldown    = 0;
+let throwAmmo        = 0;
 let gemPower         = false;
 let gemGlowTimer     = 0;
 let currentLevelIdx  = 0;

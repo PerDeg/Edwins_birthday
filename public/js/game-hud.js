@@ -68,15 +68,16 @@ const HUD = (() => {
 
     // ── Weapon indicator ──
     if (playerWeapon && playerWeapon !== 'sword') {
-      const labels = { shuriken: '✦ KASTSTJÄRNA  [X]', triple: '✦✦✦ TRIPPELSTJÄRNA  [X]', knife: '» KNIV  [X]' };
+      const labels = { shuriken: '✦ KASTSTJÄRNA', triple: '✦✦✦ TRIPPELSTJÄRNA', knife: '» KNIV' };
+      const ammoStr = typeof throwAmmo !== 'undefined' ? `  ×${throwAmmo}  [X]` : '  [X]';
       ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'right';
       ctx.fillStyle = '#4fc3f7';
-      ctx.fillText(labels[playerWeapon] || playerWeapon, C.W - 14, C.H - 16);
+      ctx.fillText((labels[playerWeapon] || playerWeapon) + ammoStr, C.W - 14, C.H - 16);
       ctx.textAlign = 'left';
     }
 
     // ── Boss HP bar ──
-    if (boss && boss.alive) {
+    if (boss && boss.alive && boss.seenByPlayer) {
       const bw = 300, bh = 16, bx = (C.W - bw) / 2, by = 44;
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
