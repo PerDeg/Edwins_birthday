@@ -217,6 +217,20 @@ function drawArcher(ctx, e) {
   ctx.restore();
 }
 
+// ── Ground collision for free-roaming enemies ─────────────────────────────────
+function _enemyGroundCollision(e) {
+  if (e.y + e.h >= C.GROUND_Y) {
+    e.y = C.GROUND_Y - e.h; e.vy = 0; e.onGround = true; return;
+  }
+  for (const p of platforms) {
+    if (e.vy >= 0 &&
+        e.y + e.h >= p.y && e.y + e.h <= p.y + p.h + 14 &&
+        e.x + e.w > p.x + 4 && e.x < p.x + p.w - 4) {
+      e.y = p.y - e.h; e.vy = 0; e.onGround = true; return;
+    }
+  }
+}
+
 // ── Entity classes ────────────────────────────────────────────────────────────
 class Player {
   constructor() {
@@ -277,14 +291,20 @@ class Grunt {
     this.baseSpd     = Math.abs(this.vx);
     this.patrolWait      = 0;                           // standing-still countdown at edge
     this.patrolStopTimer = 2.5 + Math.random() * 2.5;  // countdown to next random mid-patrol pause
+    this.hp   = C.ENEMY_HP_GRUNT;
+    this.maxHp = C.ENEMY_HP_GRUNT;
+    this.vy       = 0;
+    this.onGround = false;
   }
   canSeePlayer(player) {
     if (player.hiding) return false;
     const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
     if (dx * this.facing < 0) return false;          // player is behind guard
     if (Math.abs(dx) > C.DETECTION_RANGE) return false;
-    // Player must be standing on the same platform surface (feet within 20px of this platform)
-    if (Math.abs((player.y + player.h) - this.platform.y) > 20) return false;
+    // Platform level check only while patrolling — alerted grunts track across levels
+    if (this.aiState !== 'alert') {
+      if (Math.abs((player.y + player.h) - this.platform.y) > 20) return false;
+    }
     return true;
   }
   isBehind(player) {
@@ -310,32 +330,44 @@ class Grunt {
         if (this.detectTimer <= 0) this.aiState = 'patrol';
       }
     } else if (this.aiState === 'alert') {
-      if (!sees && dist > C.DETECTION_RANGE * 1.2) {
+      if (!sees) {
         this.lostTimer += dt;
         if (this.lostTimer > 3.0) { this.aiState = 'return'; this.lostTimer = 0; }
       } else { this.lostTimer = 0; }
     } else if (this.aiState === 'return') {
       if (sees) { this.aiState = 'alert'; this.detectTimer = C.DETECTION_TIME; }
-      else if (Math.abs(this.x - this.returnX) < 20) {
-        this.aiState = 'patrol'; this.detectTimer = 0;
-      }
     }
   }
   update(dt, player) {
     if (this.aiState === 'alert' && player) {
-      const dir   = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
-      this.vx     = dir * this.baseSpd * C.ALERT_SPEED_MUL;
+      const dir = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
+      this.vx = dir * this.baseSpd * C.ALERT_SPEED_MUL;
       this.facing = dir;
-      this.x     += this.vx * dt;
-      const { x: px, w: pw } = this.platform;
-      this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+      this.onGround = false;
+      this.vy += C.GRAVITY * dt;
+      this.x  += this.vx * dt;
+      this.y  += this.vy * dt;
+      _enemyGroundCollision(this);
+      // Jump when player is on a higher surface
+      if (this.onGround && player.y < this.y - 50) {
+        this.vy = C.JUMP_V * 0.80;
+      }
     } else if (this.aiState === 'return') {
-      const dir   = this.returnX > this.x ? 1 : -1;
-      this.vx     = dir * this.baseSpd * 0.70;
+      const dir = this.returnX > this.x ? 1 : -1;
+      this.vx = dir * this.baseSpd * 0.70;
       this.facing = dir;
-      this.x     += this.vx * dt;
-      const { x: px, w: pw } = this.platform;
-      this.x = Math.max(px, Math.min(px + pw - this.w, this.x));
+      this.onGround = false;
+      this.vy += C.GRAVITY * dt;
+      this.x  += this.vx * dt;
+      this.y  += this.vy * dt;
+      _enemyGroundCollision(this);
+      // Snap back to home platform once close enough and grounded
+      if (this.onGround && Math.abs(this.x - this.returnX) < 28) {
+        this.x = Math.max(this.platform.x, Math.min(this.platform.x + this.platform.w - this.w, this.returnX));
+        this.y = this.platform.y - this.h;
+        this.vy = 0;
+        this.aiState = 'patrol'; this.detectTimer = 0;
+      }
     } else {
       // Patrol: slow deliberate movement with edge stops and random mid-patrol pauses
       if (this.patrolWait > 0) {
@@ -375,7 +407,8 @@ class Archer {
     this.shootInterval = shootInterval;
     this.alive = true;
     this.type  = 'archer';
-    this.hits  = 0;   // 2 hits to kill
+    this.hp    = C.ENEMY_HP_ARCHER;
+    this.maxHp = C.ENEMY_HP_ARCHER;
     // Slow patrol — TODO: tweak speed per level difficulty
     this.vx = (Math.random() > 0.5 ? 1 : -1) * 30 * speedMul;
     this.animFrame = 0;

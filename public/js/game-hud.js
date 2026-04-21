@@ -25,12 +25,31 @@ const HUD = (() => {
   let comboPop = 1, prevCombo = 1;
 
   function draw(ctx, state) {
-    const { lives, score, level, combo, boss, playerWeapon, gemPower, camX, levelWidth } = state;
+    const { playerHp, score, level, combo, boss, playerWeapon, gemPower, camX, levelWidth, throwAmmo } = state;
 
-    // ── Lives (hearts) ──
-    for (let i = 0; i < C.LIVES; i++) {
-      drawHeartIcon(ctx, 22 + i * 26, 22, 9, i < lives);
-    }
+    // ── Dynamic HP bar ──
+    const hpFrac = Math.max(0, Math.min(1, (playerHp || 0) / C.PLAYER_HP));
+    const bw = 130, bh = 12, bx = 22, by = 8;
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.60)';
+    ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+    ctx.fillStyle = '#2a0000';
+    ctx.fillRect(bx, by, bw, bh);
+    // Fill — green → yellow → red
+    const hpCol = hpFrac > 0.55 ? '#22cc44' : hpFrac > 0.25 ? '#ddaa00' : '#dd2222';
+    ctx.fillStyle = hpCol;
+    ctx.fillRect(bx, by, bw * hpFrac, bh);
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bw, bh);
+    // Percentage text
+    ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`${Math.ceil(playerHp || 0)}%`, bx + bw / 2, by + bh - 1);
+    // Heart icon to the left
+    ctx.font = '15px system-ui'; ctx.textAlign = 'right';
+    ctx.fillStyle = '#e63946';
+    ctx.fillText('♥', bx - 2, by + bh);
 
     // ── Gem power indicator ──
     if (gemPower) {
@@ -38,7 +57,7 @@ const HUD = (() => {
       ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'left';
       ctx.globalAlpha = 0.7 + Math.sin(Date.now() * 0.006) * 0.3;
       ctx.fillStyle = '#a0f0ff';
-      ctx.fillText('✦ GEM-KRAFT  [Z]', 14, 46);
+      ctx.fillText('✦ GEM-KRAFT  [Z]', 14, 36);
       ctx.globalAlpha = 1; ctx.restore();
     }
 
@@ -69,7 +88,7 @@ const HUD = (() => {
     // ── Weapon indicator ──
     if (playerWeapon && playerWeapon !== 'sword') {
       const labels = { shuriken: '✦ KASTSTJÄRNA', triple: '✦✦✦ TRIPPELSTJÄRNA', knife: '» KNIV' };
-      const ammoStr = typeof throwAmmo !== 'undefined' ? `  ×${throwAmmo}  [X]` : '  [X]';
+      const ammoStr = throwAmmo != null ? `  ×${throwAmmo}  [X]` : '  [X]';
       ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'right';
       ctx.fillStyle = '#4fc3f7';
       ctx.fillText((labels[playerWeapon] || playerWeapon) + ammoStr, C.W - 14, C.H - 16);

@@ -172,11 +172,28 @@ function draw(dt) {
 
   for (const t of floatingTexts) t.draw(ctx);
 
+  // ── Ammo counter above ninja (shown briefly after each throw) ──────────────
+  if (player && ammoDisplayTimer > 0) {
+    const alpha = Math.min(1, ammoDisplayTimer * 1.4);
+    const px = player.x + player.w / 2;
+    const py = player.y - 22;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 3;
+    ctx.strokeText(`×${throwAmmo}`, px, py);
+    ctx.fillStyle = throwAmmo === 0 ? '#ff4444' : '#ffffff';
+    ctx.fillText(`×${throwAmmo}`, px, py);
+    ctx.restore();
+  }
+
   ctx.restore();
 
 
   if (gameState === STATE.PLAYING) {
-    HUD.draw(ctx, { lives, score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth });
+    HUD.draw(ctx, { playerHp, score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth, throwAmmo });
   } else if (gameState === STATE.LEVEL_COMPLETE) {
     UI.drawLevelComplete(ctx, dt, C.LEVEL_DATA[currentLevelIdx].name, level, currentLevelIdx >= C.LEVEL_DATA.length - 1);
   } else if (gameState === STATE.GAMEOVER) {

@@ -37,6 +37,13 @@ const C = {
   ENEMY_SPEED_MUL: 0.70,
   SHOOT_MUL:       1.4,
 
+  // Health system
+  PLAYER_HP:       100,   // max player HP (percentage)
+  HEART_HEAL:       20,   // HP restored per heart pickup
+  CONTACT_DAMAGE:    5,   // HP lost per enemy hit
+  ENEMY_HP_GRUNT:    3,   // hits to kill a grunt
+  ENEMY_HP_ARCHER:   3,   // hits to kill an archer
+
   // Stealth system
   DETECTION_RANGE:     230,
   DETECTION_HEIGHT:    130,

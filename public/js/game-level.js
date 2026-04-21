@@ -17,10 +17,12 @@ function initGame() {
   lives         = C.LIVES;
   kills         = 0;
   screenFlash   = 0;
-  playerWeapon  = 'sword';
-  gemPower      = false;
-  throwCooldown = 0;
-  throwAmmo     = 0;
+  playerWeapon     = 'sword';
+  gemPower         = false;
+  throwCooldown    = 0;
+  throwAmmo        = 0;
+  playerHp         = C.PLAYER_HP;
+  ammoDisplayTimer = 0;
 
   loadLevel(0);
   gameState = STATE.PLAYING;

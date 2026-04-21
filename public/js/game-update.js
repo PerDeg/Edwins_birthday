@@ -120,7 +120,7 @@ function updatePlayer(dt) {
 
   platformCollision(p);
 
-  if (p.y > C.H + 100) damagePlayer();
+  if (p.y > C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
 
   p.state = p.attacking ? 'attack' : p.crouching ? 'crouch' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
   if (p.state !== p.prevState) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
@@ -130,14 +130,14 @@ function updatePlayer(dt) {
 
 function damagePlayer() {
   if (player.invincible > 0) return;
-  lives--;
+  playerHp = Math.max(0, playerHp - C.CONTACT_DAMAGE);
   combo = 1; comboTimer = 0;
   player.invincible = C.INVINCIBLE_TIME;
   screenFlash = 1;
   triggerShake(10, 0.35);
   emitHit(particles, player.x + player.w / 2, player.y + player.h / 2);
   Audio.hit();
-  if (lives <= 0) { gameState = STATE.GAMEOVER; Audio.stop(); }
+  if (playerHp <= 0) { gameState = STATE.GAMEOVER; Audio.stop(); }
 }
 
 function throwWeapon() {
@@ -151,6 +151,7 @@ function throwWeapon() {
   }
   throwAmmo--;
   if (throwAmmo <= 0) { throwAmmo = 0; playerWeapon = 'sword'; }
+  ammoDisplayTimer = 1.8;
   Audio.slash();
 }
 
@@ -165,14 +166,13 @@ function triggerGemSpecial() {
   const visL = cam.x - 40, visR = cam.x + C.W + 40;
   for (const e of enemies) {
     if (!e.alive || e.x + e.w < visL || e.x > visR) continue;
-    if (e.type === 'archer') {
-      e.hits += 2;
-      if (e.hits >= 2) killEnemy(e);
-      else emitHit(particles, e.x + e.w/2, e.y + e.h/2);
-    } else {
+    e.hp = Math.max(0, e.hp - 2);
+    if (e.hp <= 0) {
       killEnemy(e);
+      emitEnemyDeath(particles, e.x + e.w/2, e.y + e.h/2);
+    } else {
+      emitHit(particles, e.x + e.w/2, e.y + e.h/2);
     }
-    emitEnemyDeath(particles, e.x + e.w/2, e.y + e.h/2);
   }
   if (boss && boss.alive && boss.x + boss.w > visL && boss.x < visR) {
     boss.takeDamage(); boss.takeDamage();
@@ -201,16 +201,17 @@ function updateEnemies(dt) {
       if (rectsOverlap(hb, e.bounds())) {
         if (e.type === 'grunt' && e.aiState !== 'alert' && e.isBehind(player)) {
           killEnemy(e, true);   // stealth kill from behind
-        } else if (e.type === 'archer') {
-          e.hits++;
-          if (e.hits < 2) { emitHit(particles, e.x + e.w/2, e.y + e.h/2); continue; }
-          killEnemy(e);
         } else {
-          killEnemy(e);
+          e.hp--;
+          emitHit(particles, e.x + e.w/2, e.y + e.h/2);
+          if (e.hp <= 0) killEnemy(e);
+          else if (e.type === 'grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
     }
-    if (player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) damagePlayer();
+    // Only alert grunts deal contact damage (patrol grunts can be approached stealthily)
+    const dealsDmg = e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert');
+    if (dealsDmg && player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) damagePlayer();
   }
   enemies = enemies.filter(e => e.alive);
 }
@@ -304,12 +305,12 @@ function updatePlayerShurikens(dt) {
     for (const e of enemies) {
       if (!e.alive || s.hitSet.has(e) || !s.alive) continue;
       if (rectsOverlap(s.bounds(), e.bounds())) {
-        if (e.type === 'archer') {
-          e.hits++;
-          if (e.hits < 2) emitHit(particles, e.x + e.w/2, e.y + e.h/2);
-          else killEnemy(e);
-        } else {
+        e.hp--;
+        emitHit(particles, e.x + e.w/2, e.y + e.h/2);
+        if (e.hp <= 0) {
           killEnemy(e);
+        } else if (e.type === 'grunt') {
+          e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME;
         }
         if (!s.piercing) { s.alive = false; break; }
         s.hitSet.add(e);
@@ -338,15 +339,15 @@ function updatePickups(dt) {
   const labels = { shuriken: 'KASTSTJÄRNA!', triple: '3× STJÄRNA!', knife: 'KNIV!' };
   for (const p of pickups) {
     if (!p.alive) continue;
-    // Mark heart as gem-version when player is at full life (for draw)
-    if (p.type === 'heart') p.isGem = (lives >= C.LIVES);
+    // Mark heart as gem-version when player is at full health (for draw)
+    if (p.type === 'heart') p.isGem = (playerHp >= C.PLAYER_HP);
     p.update(dt);
     if (rectsOverlap(player.bounds(), p.bounds())) {
       p.alive = false;
       if (p.type === 'heart') {
-        if (lives < C.LIVES) {
-          lives++;
-          floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, '+1 LIV!', '#e63946', 1.3));
+        if (playerHp < C.PLAYER_HP) {
+          playerHp = Math.min(C.PLAYER_HP, playerHp + C.HEART_HEAL);
+          floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, `+${C.HEART_HEAL}% LIV`, '#e63946', 1.3));
           Audio.levelUp();
         } else {
           // Full health — grant gem power
@@ -401,6 +402,7 @@ function update(dt) {
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);
+  if (ammoDisplayTimer > 0) ammoDisplayTimer = Math.max(0, ammoDisplayTimer - dt);
 
   for (const p of particles)     p.update(dt);
   for (const t of floatingTexts) t.update(dt);
