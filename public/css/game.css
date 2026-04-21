@@ -111,12 +111,6 @@ html {
   letter-spacing: 0.06em;
 }
 
-#submit-rank {
-  color: #c8a83c;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
 #submit-name-label {
   color: rgba(200,168,60,0.72);
   font-size: 0.80rem;
@@ -125,8 +119,15 @@ html {
   margin-top: 0.3rem;
 }
 
+#submit-save-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
 #name-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.7rem 1rem;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(200,168,60,0.38);
@@ -169,15 +170,23 @@ html {
 }
 .ui-btn-red:hover { background: rgba(230,57,70,0.22); }
 
-#btn-view-scores {
-  color: rgba(200,168,60,0.50);
-  font-size: 0.78rem;
-  text-decoration: none;
-  letter-spacing: 0.10em;
-  margin-top: 0.15rem;
-  transition: color 0.15s;
+.ui-btn-gold {
+  flex: none;
+  border-color: rgba(200,168,60,0.70);
+  background: rgba(200,168,60,0.18);
+  color: #c8a83c;
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
 }
-#btn-view-scores:hover { color: #c8a83c; }
+.ui-btn-gold:hover { background: rgba(200,168,60,0.34); }
+.ui-btn-gold:disabled { opacity: 0.45; cursor: default; }
+
+#submit-rank {
+  color: #c8a83c;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-height: 1.2em;
+}
 
 /* ── Menu overlay ───────────────────────────────────────────────────────────── */
 #menu-overlay {

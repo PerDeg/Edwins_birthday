@@ -112,6 +112,8 @@ function _showOverlay() {
   _submitScore.textContent   =
     `Poäng: ${score.toLocaleString('sv')}  ·  Nivå ${level}  ·  ${kills} fiender`;
   if (_submitRankEl) _submitRankEl.style.display = 'none';
+  const saveBtn = document.getElementById('btn-save-score');
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Spara'; }
   if (_nameInput)  { _nameInput.value = ''; }
   _submitOverlay.style.display = 'flex';
   setTimeout(() => _nameInput && _nameInput.focus(), 80);
@@ -232,25 +234,26 @@ canvas.addEventListener('touchend', e => {
 });
 
 // ── HTML overlay buttons ──────────────────────────────────────────────────────
+document.getElementById('btn-save-score')?.addEventListener('click', () => {
+  const n = _nameInput ? _nameInput.value.trim() : '';
+  if (!n) { if (_nameInput) _nameInput.focus(); return; }
+  const saveBtn = document.getElementById('btn-save-score');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '✓'; }
+  finishSubmit(n);
+});
+
+// Enter key in name field triggers save
+_nameInput?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-save-score')?.click();
+});
+
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
   _hideOverlay();
   _resetSubmitFlags();
-  _showMenu();
+  initGame();
 });
 
-// "Avsluta" — submit score then return to menu (menu now shows high scores)
 document.getElementById('btn-quit')?.addEventListener('click', () => {
-  const n = _nameInput ? _nameInput.value : '';
-  finishSubmit(n);
-  _hideOverlay();
-  _resetSubmitFlags();
-  _showMenu();
-});
-
-document.getElementById('btn-view-scores')?.addEventListener('click', e => {
-  e.preventDefault();
-  const n = _nameInput ? _nameInput.value : '';
-  finishSubmit(n);
   _hideOverlay();
   _resetSubmitFlags();
   _showMenu();

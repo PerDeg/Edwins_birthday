@@ -25,17 +25,19 @@
     <div id="submit-box">
       <div id="submit-heading">GAME OVER</div>
       <div id="submit-score"></div>
-      <div id="submit-rank" style="display:none">
-        Du kom på plats #<span id="rank-num"></span>!
+      <label id="submit-name-label">Spara ditt resultat:</label>
+      <div id="submit-save-row">
+        <input id="name-input" type="text" maxlength="20"
+               placeholder="Ninja-namn…" autocomplete="off" spellcheck="false">
+        <button id="btn-save-score" class="ui-btn ui-btn-gold">Spara</button>
       </div>
-      <label id="submit-name-label">Skriv in ditt namn:</label>
-      <input id="name-input" type="text" maxlength="20"
-             placeholder="Ninja-namn…" autocomplete="off" spellcheck="false">
+      <div id="submit-rank" style="display:none">
+        Du kom på plats #<span id="rank-num"></span>! 🏆
+      </div>
       <div id="submit-btn-row">
         <button id="btn-play-again" class="ui-btn">Spela igen</button>
-        <button id="btn-quit"       class="ui-btn ui-btn-red">Avsluta</button>
+        <button id="btn-quit"       class="ui-btn ui-btn-red">Avbryt</button>
       </div>
-      <a href="#" id="btn-view-scores">Highscore top10 ›</a>
     </div>
   </div>
 
