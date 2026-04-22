@@ -55,6 +55,18 @@ function drawDetectionCone(ctx, e) {
   ctx.restore();
 }
 
+// ── Enemy HP bar ──────────────────────────────────────────────────────────────
+function drawEnemyHpBar(ctx, e) {
+  const bw = e.w + 8, bh = 4, bx = e.x - 4, by = e.y - 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.60)';
+  ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+  ctx.fillStyle = '#2a0000';
+  ctx.fillRect(bx, by, bw, bh);
+  const frac = Math.max(0, e.hp / e.maxHp);
+  ctx.fillStyle = frac > 0.55 ? '#22cc44' : frac > 0.25 ? '#ddaa00' : '#dd2222';
+  ctx.fillRect(bx, by, bw * frac, bh);
+}
+
 // ── Platform drawing ──────────────────────────────────────────────────────────
 function drawPlatform(ctx, p) {
   const TILE = 16;
@@ -134,6 +146,7 @@ function draw(dt) {
     if (!e.alive || e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
     if (e.type === 'grunt') drawDetectionCone(ctx, e);
     e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
+    drawEnemyHpBar(ctx, e);
   }
 
   for (const s of shurikens) {

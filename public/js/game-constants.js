@@ -43,6 +43,7 @@ const C = {
   CONTACT_DAMAGE:    5,   // HP lost per enemy hit
   ENEMY_HP_GRUNT:    3,   // hits to kill a grunt
   ENEMY_HP_ARCHER:   3,   // hits to kill an archer
+  ARCHER_AMMO:       6,   // shots before archer stops shooting
 
   // Stealth system
   DETECTION_RANGE:     230,

@@ -211,9 +211,21 @@ function updateEnemies(dt) {
         }
       }
     }
+    // Solid collision: push player out so enemies are physical obstacles
+    if (!player.hiding && rectsOverlap(player.bounds(), e.bounds())) {
+      const overlapL = (e.x + e.w) - player.x;
+      const overlapR = (player.x + player.w) - e.x;
+      if (overlapL < overlapR) {
+        player.x = e.x + e.w;
+        if (player.vx < 0) player.vx = 0;
+      } else {
+        player.x = e.x - player.w;
+        if (player.vx > 0) player.vx = 0;
+      }
+    }
     // Only alert grunts deal contact damage (patrol grunts can be approached stealthily)
     const dealsDmg = e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert');
-    if (dealsDmg && player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) damagePlayer();
+    if (dealsDmg && !player.hiding && player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) damagePlayer();
   }
   enemies = enemies.filter(e => e.alive);
 }
@@ -282,7 +294,7 @@ function killBoss() {
 function updateShurikens(dt) {
   for (const s of shurikens) {
     s.update(dt, cam.x);
-    if (s.alive && player.invincible <= 0 && rectsOverlap(player.bounds(), s.bounds())) {
+    if (s.alive && !player.hiding && player.invincible <= 0 && rectsOverlap(player.bounds(), s.bounds())) {
       s.alive = false; damagePlayer();
     }
   }

@@ -417,6 +417,7 @@ class Archer {
     this.vx = (Math.random() > 0.5 ? 1 : -1) * 30 * speedMul;
     this.vy       = 0;
     this.onGround = false;
+    this.ammo     = C.ARCHER_AMMO;
     this.animFrame = 0;
     this.animTimer = 0;
   }
@@ -439,8 +440,9 @@ class Archer {
 
     this.facing = player.x > this.x ? 1 : -1;
     this.shootTimer -= dt;
-    if (this.shootTimer <= 0) {
+    if (this.shootTimer <= 0 && this.ammo > 0 && !player.hiding) {
       this.shootTimer = this.shootInterval;
+      this.ammo--;
       shurikens.push(new EnemyShuriken(
         this.x + this.w / 2, this.y + this.h * 0.3,
         player.x + player.w / 2, player.y + player.h * 0.4
@@ -602,7 +604,7 @@ class WeaponPickup {
       // Kunai.png points up; rotate so it faces upper-right at pickup
       const kAngle = Math.PI / 2 - 0.45;
       if (typeof Sprites !== 'undefined' &&
-          Sprites.drawRotated(ctx, 'weapon-kunai', cx, cy, 32, 12, kAngle)) {
+          Sprites.drawRotated(ctx, 'weapon-kunai', cx, cy, 10, 32, kAngle)) {
         ctx.restore(); return;
       }
       // Fallback programmatic knife
@@ -674,13 +676,13 @@ class PlayerShuriken {
   draw(ctx) {
     if (this.type === 'knife') {
       if (typeof Sprites !== 'undefined' &&
-          Sprites.drawRotated(ctx, 'weapon-kunai', this.x, this.y, 28, 10, this.rot)) return;
-      // Fallback
+          Sprites.drawRotated(ctx, 'weapon-kunai', this.x, this.y, 10, 32, this.rot)) return;
+      // Fallback — drawn vertical (blade up), rotation handles travel direction
       ctx.save();
       ctx.translate(this.x, this.y);
       ctx.rotate(this.rot);
-      ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-11, -3, 23, 6);
-      ctx.fillStyle = '#c8a83c'; ctx.fillRect(-15, -5, 5, 10);
+      ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-3, -14, 6, 22);   // blade
+      ctx.fillStyle = '#c8a83c'; ctx.fillRect(-4, 8, 8, 6);      // handle
       ctx.restore();
     } else {
       if (typeof Sprites !== 'undefined' &&
