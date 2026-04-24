@@ -33,12 +33,13 @@ window.addEventListener('keydown', e => { keys[e.code] = true; });
 window.addEventListener('keyup',   e => { keys[e.code] = false; });
 function keyJustPressed(code) { return !!(keys[code] && !prevKeys[code]); }
 
-['btn-left','btn-right','btn-jump','btn-attack','btn-throw'].forEach(id => {
+['btn-left','btn-right','btn-down','btn-jump','btn-attack','btn-throw'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
   const map = {
     'btn-left':   'ArrowLeft',
     'btn-right':  'ArrowRight',
+    'btn-down':   'ArrowDown',
     'btn-jump':   'Space',
     'btn-attack': 'KeyZ',
     'btn-throw':  'KeyX',
@@ -77,6 +78,7 @@ let platforms     = [], enemies = [], shurikens = [];
 let particles     = [], floatingTexts = [], petals = [];
 let coins         = [], pickups = [], playerShurikens = [], boss = null;
 let hidingSpots   = [];
+let ladders       = [], spikes = [];
 
 // ── Counters & flags ───────────────────────────────────────────────────────────
 let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;

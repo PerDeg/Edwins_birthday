@@ -26,8 +26,78 @@ function drawShadowPool(ctx, x, y, w, h) {
   ctx.restore();
 }
 
+function drawBox(ctx, spot) {
+  if (typeof Sprites !== 'undefined' &&
+      Sprites.drawRotated(ctx, 'prop-box',
+        spot.x + spot.w / 2, spot.y + spot.h / 2,
+        spot.w, spot.h, (spot.rotation || 0) * Math.PI / 180)) return;
+  // Fallback: wooden crate
+  const { x, y, w, h } = spot;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.rotate((spot.rotation || 0) * Math.PI / 180);
+  ctx.fillStyle = '#8b5e2b';
+  ctx.fillRect(-w / 2, -h / 2, w, h);
+  ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 2;
+  ctx.strokeRect(-w / 2 + 1, -h / 2 + 1, w - 2, h - 2);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -h / 2); ctx.lineTo(w / 2, h / 2);
+  ctx.moveTo(w / 2, -h / 2);  ctx.lineTo(-w / 2, h / 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLadder(ctx, l) {
+  if (typeof Sprites !== 'undefined' &&
+      Sprites.drawRotated(ctx, 'prop-ladder',
+        l.x + l.w / 2, l.y + l.h / 2,
+        l.w, l.h, (l.rotation || 0) * Math.PI / 180)) return;
+  // Fallback: rails + rungs
+  const { x, y, w, h } = l;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.rotate((l.rotation || 0) * Math.PI / 180);
+  ctx.strokeStyle = '#c8a83c'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + 3, -h / 2); ctx.lineTo(-w / 2 + 3, h / 2);
+  ctx.moveTo(w / 2 - 3,  -h / 2); ctx.lineTo(w / 2 - 3,  h / 2);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  const rungStep = 14;
+  const rungCount = Math.floor(h / rungStep);
+  for (let i = 0; i <= rungCount; i++) {
+    const ry = -h / 2 + i * rungStep;
+    ctx.beginPath(); ctx.moveTo(-w / 2 + 3, ry); ctx.lineTo(w / 2 - 3, ry); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSpike(ctx, s) {
+  if (typeof Sprites !== 'undefined' &&
+      Sprites.drawRotated(ctx, 'prop-spike',
+        s.x + s.w / 2, s.y + s.h / 2,
+        s.w, s.h, (s.rotation || 0) * Math.PI / 180)) return;
+  // Fallback: row of triangles
+  const { x, y, w, h } = s;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.rotate((s.rotation || 0) * Math.PI / 180);
+  ctx.fillStyle = '#b0b0b0';
+  const tipCount = 4, tw = w / tipCount;
+  for (let i = 0; i < tipCount; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 + i * tw,         h / 2);
+    ctx.lineTo(-w / 2 + (i + 0.5) * tw, -h / 2 + h * 0.18);
+    ctx.lineTo(-w / 2 + (i + 1) * tw,   h / 2);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawHidingSpot(ctx, spot) {
   if (spot.type === 'barrel') drawBarrel(ctx, spot.x, spot.y, spot.w, spot.h);
+  else if (spot.type === 'box') drawBox(ctx, spot);
   else drawShadowPool(ctx, spot.x, spot.y, spot.w, spot.h);
 }
 
@@ -125,6 +195,16 @@ function draw(dt) {
     drawPlatform(ctx, p);
   }
 
+  for (const l of ladders) {
+    if (l.x + l.w < cam.x - 20 || l.x > cam.x + C.W + 20) continue;
+    drawLadder(ctx, l);
+  }
+
+  for (const s of spikes) {
+    if (s.x + s.w < cam.x - 20 || s.x > cam.x + C.W + 20) continue;
+    drawSpike(ctx, s);
+  }
+
   // Hiding spots — draw all except the active one (drawn on top of player later)
   for (const s of hidingSpots) {
     if (s === player?.hidingAt) continue;
@@ -170,6 +250,45 @@ function draw(dt) {
                   player.w * 1.5, player.h * 1.1, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+    // Ground glow — helps player spot themselves on small screens
+    if (!player.hiding) {
+      const pulse = 0.4 + Math.sin(Date.now() * 0.005) * 0.2;
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#00ddff';
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.w / 2, player.y + player.h,
+                  player.w * 0.85, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    if (player.dashing) {
+      // Fire aura — elongated glow in dash direction, trail behind
+      const flicker = 0.75 + Math.sin(Date.now() * 0.06) * 0.25;
+      const cx = player.x + player.w / 2 + player.dashDir * 8;
+      const cy = player.y + player.h * 0.45;
+      ctx.save();
+      ctx.globalAlpha = flicker * 0.82;
+      const g = ctx.createRadialGradient(cx, cy, 3, cx, cy, 40);
+      g.addColorStop(0,   '#ffffff');
+      g.addColorStop(0.2, '#ffdd00');
+      g.addColorStop(0.55,'#ff5500');
+      g.addColorStop(1,   'rgba(255,60,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, player.w * 1.7, player.h * 1.0, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Trailing streak on opposite side
+      const tx = player.x + player.w / 2 - player.dashDir * player.w * 1.4;
+      const tg = ctx.createRadialGradient(tx, cy, 1, tx, cy, 26);
+      tg.addColorStop(0, '#ffcc00'); tg.addColorStop(1, 'rgba(255,80,0,0)');
+      ctx.globalAlpha = flicker * 0.55;
+      ctx.fillStyle = tg;
+      ctx.beginPath();
+      ctx.ellipse(tx, cy, player.w * 1.1, player.h * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
     if (player.hiding) {

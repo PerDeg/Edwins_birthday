@@ -56,13 +56,17 @@ function eRenderProps() {
 
   } else if (col === 'hidingSpots') {
     const h = ld.hidingSpots[idx];
-    titleEl.textContent = h.type === 'barrel' ? 'Tunna' : 'Skugga';
-    const typeOpts = [['barrel','Tunna'],['shadow','Skugga']];
+    const lblMap = { barrel: 'Tunna', box: 'Låda', shadow: 'Skugga' };
+    titleEl.textContent = lblMap[h.type] || h.type;
+    const typeOpts = [['barrel','Tunna'],['box','Låda'],['shadow','Skugga']];
     bodyEl.innerHTML =
-      _row('X',   _num('hp-x', h.x, 0, 20000, EGRID)) +
-      _row('Y',   _num('hp-y', h.y, 0, EGROUND_Y, EGRID)) +
-      _row('Typ', _sel('hp-type', typeOpts, h.type));
-    _bindNum('hp-x', v => { h.x = v; }); _bindNum('hp-y', v => { h.y = v; });
+      _row('X',        _num('hp-x',   h.x,            0, 20000,     EGRID)) +
+      _row('Y',        _num('hp-y',   h.y,            0, EGROUND_Y, EGRID)) +
+      _row('Typ',      _sel('hp-type', typeOpts, h.type)) +
+      _row('Rotation', _num('hp-rot', h.rotation || 0, 0, 359, 1));
+    _bindNum('hp-x',   v => { h.x = v; });
+    _bindNum('hp-y',   v => { h.y = v; });
+    _bindNum('hp-rot', v => { h.rotation = v; });
     _bindChange('hp-type', v => { h.type = v; eRenderProps(); });
 
   } else if (col === 'pickups') {
@@ -75,6 +79,33 @@ function eRenderProps() {
       _row('Typ', _sel('pkp-type', typeOpts, p.type));
     _bindNum('pkp-x',    v => { p.x = v; }); _bindNum('pkp-y', v => { p.y = v; });
     _bindChange('pkp-type', v => { p.type = v; });
+
+  } else if (col === 'ladders') {
+    const l = ld.ladders[idx];
+    titleEl.textContent = 'Stege';
+    bodyEl.innerHTML =
+      _row('X',        _num('lp-x',   l.x,            0, 20000,     EGRID)) +
+      _row('Y',        _num('lp-y',   l.y,            0, EGROUND_Y, EGRID)) +
+      _row('Bredd',    _num('lp-w',   l.w,            8, 200,       EGRID)) +
+      _row('Höjd',     _num('lp-h',   l.h,           16, 800,       EGRID)) +
+      _row('Rotation', _num('lp-rot', l.rotation || 0, 0, 359, 1));
+    _bindNum('lp-x',   v => { l.x = v; });
+    _bindNum('lp-y',   v => { l.y = v; });
+    _bindNum('lp-w',   v => { l.w = v; });
+    _bindNum('lp-h',   v => { l.h = v; });
+    _bindNum('lp-rot', v => { l.rotation = v; });
+
+  } else if (col === 'spikes') {
+    const s = ld.spikes[idx];
+    titleEl.textContent = 'Spikar';
+    bodyEl.innerHTML =
+      _row('X',        _num('sp-x',   s.x,            0, 20000,     EGRID)) +
+      _row('Y',        _num('sp-y',   s.y,            0, EGROUND_Y, EGRID)) +
+      _row('Rotation', _num('sp-rot', s.rotation !== undefined ? s.rotation : 180, 0, 359, 1)) +
+      '<p style="font-size:0.75rem;opacity:0.6;margin-top:4px">0°=spetsar ned · 180°=spetsar upp</p>';
+    _bindNum('sp-x',   v => { s.x = v; });
+    _bindNum('sp-y',   v => { s.y = v; });
+    _bindNum('sp-rot', v => { s.rotation = v; });
 
   } else if (col === 'boss') {
     const b = ld.boss;

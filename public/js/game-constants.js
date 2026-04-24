@@ -59,6 +59,17 @@ const C = {
   PATROL_WAIT_MIN:     1.4,    // minimum stop duration at platform edge (s)
   PATROL_WAIT_MAX:     3.2,    // maximum stop duration at platform edge (s)
 
+  // Ladder / spike
+  SPIKE_DAMAGE:        10,    // HP lost per spike touch
+  LADDER_SPEED:       130,    // px/s climbing speed
+
+  // Dash attack (double-tap forward)
+  DASH_SPEED:         900,    // px/s during dash
+  DASH_DURATION:      0.15,   // s (~4× player width at 900px/s)
+  DASH_COOLDOWN:      1.0,    // s between dashes
+  DASH_DAMAGE:          2,    // enemy hp reduction per hit (double)
+  DASH_TAP_WIN:        0.28,  // double-tap detection window (s)
+
   // Hiding mechanic
   HIDE_RANGE:          52,     // horizontal distance to interact with a hiding spot
 

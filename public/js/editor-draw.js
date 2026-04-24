@@ -96,24 +96,80 @@ function eDrawCoin(ctx, c, viewX, selected) {
 
 function eDrawHidingSpot(ctx, h, viewX, selected) {
   const sx = h.x - viewX;
-  const W = h.type === 'barrel' ? 28 : 42;
-  const H = h.type === 'barrel' ? 34 : 12;
+  const W = h.type === 'barrel' ? 28 : h.type === 'box' ? 36 : 42;
+  const H = h.type === 'barrel' ? 34 : h.type === 'box' ? 40 : 12;
   if (sx + W < -20 || sx > ECANVAS_W + 20) return;
-  if (h.type === 'barrel') {
-    ctx.fillStyle = '#5a2d0c'; ctx.fillRect(sx, h.y, W, H);
-    ctx.fillStyle = '#7a4020'; ctx.fillRect(sx, h.y, W, 6);
-    ctx.fillStyle = '#2a1208'; ctx.fillRect(sx, h.y + 9, W, 3); ctx.fillRect(sx, h.y + H - 12, W, 3);
+  ctx.save();
+  ctx.translate(sx + W / 2, h.y + H / 2);
+  ctx.rotate((h.rotation || 0) * Math.PI / 180);
+  if (h.type === 'box') {
+    ctx.fillStyle = '#8b5e2b'; ctx.fillRect(-W/2, -H/2, W, H);
+    ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 2;
+    ctx.strokeRect(-W/2 + 1, -H/2 + 1, W - 2, H - 2);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-W/2, -H/2); ctx.lineTo(W/2, H/2);
+    ctx.moveTo(W/2, -H/2); ctx.lineTo(-W/2, H/2); ctx.stroke();
+  } else if (h.type === 'barrel') {
+    ctx.fillStyle = '#5a2d0c'; ctx.fillRect(-W/2, -H/2, W, H);
+    ctx.fillStyle = '#7a4020'; ctx.fillRect(-W/2, -H/2, W, 6);
+    ctx.fillStyle = '#2a1208'; ctx.fillRect(-W/2, -H/2 + 9, W, 3); ctx.fillRect(-W/2, H/2 - 12, W, 3);
     ctx.strokeStyle = '#1a0804'; ctx.lineWidth = 1.5;
-    ctx.strokeRect(sx + 0.5, h.y + 0.5, W - 1, H - 1); ctx.lineWidth = 1;
+    ctx.strokeRect(-W/2 + 0.5, -H/2 + 0.5, W - 1, H - 1); ctx.lineWidth = 1;
   } else {
-    ctx.save(); ctx.globalAlpha = 0.7;
+    ctx.globalAlpha = 0.7;
     ctx.fillStyle = '#180028';
-    ctx.beginPath(); ctx.ellipse(sx + W/2, h.y + H/2, W/2, H/2, 0, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(0, 0, W/2, H/2, 0, 0, Math.PI*2); ctx.fill();
   }
+  ctx.restore();
   ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '8px system-ui'; ctx.textAlign = 'center';
-  ctx.fillText(h.type === 'barrel' ? 'TUN' : 'SKG', sx + W/2, h.y - 2);
+  const lbl = h.type === 'barrel' ? 'TUN' : h.type === 'box' ? 'LÅD' : 'SKG';
+  ctx.fillText(lbl, sx + W / 2, h.y - 2);
   if (selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(sx - 2, h.y - 2, W + 4, H + 4); }
+}
+
+function eDrawLadder(ctx, l, viewX, selected) {
+  const sx = l.x - viewX;
+  if (sx + l.w < -20 || sx > ECANVAS_W + 20) return;
+  ctx.save();
+  ctx.translate(sx + l.w / 2, l.y + l.h / 2);
+  ctx.rotate((l.rotation || 0) * Math.PI / 180);
+  ctx.strokeStyle = E_COLORS.ladder; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-l.w/2 + 3, -l.h/2); ctx.lineTo(-l.w/2 + 3, l.h/2);
+  ctx.moveTo(l.w/2 - 3,  -l.h/2); ctx.lineTo(l.w/2 - 3,  l.h/2);
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  const rungStep = 14, rungCount = Math.floor(l.h / rungStep);
+  for (let i = 0; i <= rungCount; i++) {
+    const ry = -l.h / 2 + i * rungStep;
+    ctx.beginPath(); ctx.moveTo(-l.w/2 + 3, ry); ctx.lineTo(l.w/2 - 3, ry); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '8px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('STG', sx + l.w / 2, l.y - 2);
+  if (selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(sx - 2, l.y - 2, l.w + 4, l.h + 4); }
+}
+
+function eDrawSpike(ctx, s, viewX, selected) {
+  const sx = s.x - viewX;
+  const SW = 48, SH = 48;
+  if (sx + SW < -20 || sx > ECANVAS_W + 20) return;
+  ctx.save();
+  ctx.translate(sx + SW / 2, s.y + SH / 2);
+  ctx.rotate((s.rotation || 0) * Math.PI / 180);
+  ctx.fillStyle = E_COLORS.spike;
+  const tipCount = 4, tw = SW / tipCount;
+  for (let i = 0; i < tipCount; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-SW/2 + i * tw,         SH/2);
+    ctx.lineTo(-SW/2 + (i + 0.5) * tw, -SH/2 + SH * 0.18);
+    ctx.lineTo(-SW/2 + (i + 1) * tw,   SH/2);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '8px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('SPK', sx + SW / 2, s.y - 2);
+  if (selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(sx - 2, s.y - 2, SW + 4, SH + 4); }
 }
 
 function eDrawPickup(ctx, p, viewX, selected) {
@@ -159,6 +215,10 @@ function eRender(ctx) {
   ctx.save(); ctx.textBaseline = 'top';
   for (let i = 0; i < ld.platforms.length; i++)
     eDrawPlatform(ctx, ld.platforms[i], ES.viewX, ES.selected?.col === 'platforms' && ES.selected.idx === i);
+  for (let i = 0; i < (ld.ladders || []).length; i++)
+    eDrawLadder(ctx, ld.ladders[i], ES.viewX, ES.selected?.col === 'ladders' && ES.selected.idx === i);
+  for (let i = 0; i < (ld.spikes || []).length; i++)
+    eDrawSpike(ctx, ld.spikes[i], ES.viewX, ES.selected?.col === 'spikes' && ES.selected.idx === i);
   for (let i = 0; i < (ld.hidingSpots || []).length; i++)
     eDrawHidingSpot(ctx, ld.hidingSpots[i], ES.viewX, ES.selected?.col === 'hidingSpots' && ES.selected.idx === i);
   for (let i = 0; i < ld.pickups.length; i++)

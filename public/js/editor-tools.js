@@ -29,10 +29,22 @@ function eHitTest(wx, wy) {
   // Hiding spots
   for (let i = (ld.hidingSpots || []).length - 1; i >= 0; i--) {
     const h = ld.hidingSpots[i];
-    const W = h.type === 'barrel' ? 28 : 42;
-    const H = h.type === 'barrel' ? 34 : 12;
+    const W = h.type === 'barrel' ? 28 : h.type === 'box' ? 36 : 42;
+    const H = h.type === 'barrel' ? 34 : h.type === 'box' ? 40 : 12;
     if (wx >= h.x - 4 && wx <= h.x + W + 4 && wy >= h.y - 4 && wy <= h.y + H + 4)
       return { col: 'hidingSpots', idx: i };
+  }
+  // Ladders
+  for (let i = (ld.ladders || []).length - 1; i >= 0; i--) {
+    const l = ld.ladders[i];
+    if (wx >= l.x - 4 && wx <= l.x + l.w + 4 && wy >= l.y - 4 && wy <= l.y + l.h + 4)
+      return { col: 'ladders', idx: i };
+  }
+  // Spikes
+  for (let i = (ld.spikes || []).length - 1; i >= 0; i--) {
+    const s = ld.spikes[i];
+    if (wx >= s.x - 4 && wx <= s.x + 48 + 4 && wy >= s.y - 4 && wy <= s.y + 48 + 4)
+      return { col: 'spikes', idx: i };
   }
   return null;
 }
@@ -44,6 +56,8 @@ function eGetXY(sel) {
   if (sel.col === 'enemies')     return { x: ld.enemies[sel.idx].x,             y: ld.enemies[sel.idx].y };
   if (sel.col === 'pickups')     return { x: ld.pickups[sel.idx].x,             y: ld.pickups[sel.idx].y };
   if (sel.col === 'hidingSpots') return { x: ld.hidingSpots[sel.idx].x,         y: ld.hidingSpots[sel.idx].y };
+  if (sel.col === 'ladders')     return { x: ld.ladders[sel.idx].x,             y: ld.ladders[sel.idx].y };
+  if (sel.col === 'spikes')      return { x: ld.spikes[sel.idx].x,              y: ld.spikes[sel.idx].y };
   if (sel.col === 'boss')        return { x: ld.boss.x,                          y: ld.boss.y };
   return { x: 0, y: 0 };
 }
@@ -54,6 +68,8 @@ function eSetXY(sel, x, y) {
   else if (sel.col === 'enemies')    { ld.enemies[sel.idx].x = x;     ld.enemies[sel.idx].y = y; }
   else if (sel.col === 'pickups')    { ld.pickups[sel.idx].x = x;     ld.pickups[sel.idx].y = y; }
   else if (sel.col === 'hidingSpots'){ ld.hidingSpots[sel.idx].x = x; ld.hidingSpots[sel.idx].y = y; }
+  else if (sel.col === 'ladders')    { ld.ladders[sel.idx].x = x;     ld.ladders[sel.idx].y = y; }
+  else if (sel.col === 'spikes')     { ld.spikes[sel.idx].x = x;      ld.spikes[sel.idx].y = y; }
   else if (sel.col === 'boss')       { ld.boss.x = x; ld.boss.y = y; }
 }
 
@@ -74,10 +90,19 @@ function ePlace(tool, wx, wy) {
     eRenderProps();
   } else if (tool === 'hiding-barrel') {
     if (!ld.hidingSpots) ld.hidingSpots = [];
-    ld.hidingSpots.push({ type: 'barrel', x: sx, y: sy });
+    ld.hidingSpots.push({ type: 'barrel', x: sx, y: sy, rotation: 0 });
+  } else if (tool === 'hiding-box') {
+    if (!ld.hidingSpots) ld.hidingSpots = [];
+    ld.hidingSpots.push({ type: 'box', x: sx, y: sy, rotation: 0 });
   } else if (tool === 'hiding-shadow') {
     if (!ld.hidingSpots) ld.hidingSpots = [];
-    ld.hidingSpots.push({ type: 'shadow', x: sx, y: sy });
+    ld.hidingSpots.push({ type: 'shadow', x: sx, y: sy, rotation: 0 });
+  } else if (tool === 'ladder') {
+    if (!ld.ladders) ld.ladders = [];
+    ld.ladders.push({ x: sx, y: sy, w: 24, h: 96, rotation: 0 });
+  } else if (tool === 'spike') {
+    if (!ld.spikes) ld.spikes = [];
+    ld.spikes.push({ x: sx, y: sy, rotation: 180 });
   } else if (tool.startsWith('pickup-')) {
     ld.pickups.push({ type: tool.replace('pickup-', ''), x: sx, y: sy });
   }
@@ -92,6 +117,8 @@ function eDeleteSelected() {
   else if (col === 'enemies')    ld.enemies.splice(idx, 1);
   else if (col === 'pickups')    ld.pickups.splice(idx, 1);
   else if (col === 'hidingSpots') (ld.hidingSpots || []).splice(idx, 1);
+  else if (col === 'ladders')   (ld.ladders || []).splice(idx, 1);
+  else if (col === 'spikes')    (ld.spikes  || []).splice(idx, 1);
   else if (col === 'boss')       ld.boss = null;
   ES.selected = null;
   eRenderProps();

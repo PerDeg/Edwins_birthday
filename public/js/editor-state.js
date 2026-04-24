@@ -52,8 +52,10 @@ function eToFlat(ld) {
     platforms,
     enemies,
     coins:        [],
-    hidingSpots:  (ld.hidingSpots || []).map(h => ({ type: h.type, x: h.x, y: h.y })),
+    hidingSpots:  (ld.hidingSpots || []).map(h => ({ type: h.type, x: h.x, y: h.y, rotation: h.rotation || 0 })),
     pickups:      (ld.pickups || []).map(p => ({ type: p.type, x: p.x, y: p.y })),
+    ladders:      (ld.ladders || []).map(l => ({ x: l.x, y: l.y, w: l.w || 24, h: l.h || 96, rotation: l.rotation || 0 })),
+    spikes:       (ld.spikes  || []).map(s => ({ x: s.x, y: s.y, rotation: s.rotation !== undefined ? s.rotation : 180 })),
     boss: ld.boss ? { x: ld.boss.x, y: ld.boss.y, hp: ld.boss.hp || 8, type: ld.boss.type || 'samurai' } : null,
   };
 }

@@ -3,8 +3,9 @@
 // ── Camera ─────────────────────────────────────────────────────────────────────
 function updateCamera(dt) {
   const target = player.x - C.W * 0.35;
-  cam.x += (target - cam.x) * Math.min(dt * 8, 1);
-  cam.x  = Math.max(0, Math.min(levelWidth - C.W * 0.4, cam.x));
+  const newX   = cam.x + (target - cam.x) * Math.min(dt * 8, 1);
+  // Ratchet: camera only advances forward, never scrolls back
+  cam.x = Math.max(cam.x, Math.max(0, Math.min(levelWidth - C.W * 0.4, newX)));
   if (cam.shakeDur > 0) {
     cam.shakeDur -= dt;
     cam.shake = cam.shakeDur > 0 ? (Math.random() - 0.5) * 14 : 0;
@@ -77,17 +78,103 @@ function updatePlayer(dt) {
     return;
   }
 
+  // ── Dash: double-tap detection ──────────────────────────────────────────
+  const leftJust  = keyJustPressed('ArrowLeft')  || keyJustPressed('KeyA');
+  const rightJust = keyJustPressed('ArrowRight') || keyJustPressed('KeyD');
+  if (p.tapLeftTimer  > 0) p.tapLeftTimer  -= dt;
+  if (p.tapRightTimer > 0) p.tapRightTimer -= dt;
+  if (p.dashCooldown  > 0) p.dashCooldown  -= dt;
+  if (!p.dashing && p.dashCooldown <= 0) {
+    const dir = (rightJust && p.tapRightTimer > 0) ? 1
+              : (leftJust  && p.tapLeftTimer  > 0) ? -1 : 0;
+    if (dir !== 0) {
+      p.dashing = true; p.dashDir = dir;
+      p.dashTimer   = C.DASH_DURATION;
+      p.dashHitSet  = new Set();
+      p.dashCooldown = C.DASH_COOLDOWN;
+      p.vy = Math.min(p.vy, -80);  // small upward kick at start
+      emitDashFire(particles, p.x + p.w / 2, p.y + p.h / 2, dir);
+      emitDashFire(particles, p.x + p.w / 2, p.y + p.h / 2, dir);
+      Audio.slash();
+    }
+  }
+  if (rightJust) p.tapRightTimer = C.DASH_TAP_WIN;
+  if (leftJust)  p.tapLeftTimer  = C.DASH_TAP_WIN;
+
+  // ── Dashing ─────────────────────────────────────────────────────────────
+  if (p.dashing) {
+    p.dashTimer -= dt;
+    if (p.dashTimer > 0) {
+      p.x  += p.dashDir * C.DASH_SPEED * dt;
+      p.vy += C.GRAVITY * 0.12 * dt;   // near-weightless arc during lunge
+      p.y  += p.vy * dt;
+      if (p.x < cam.x) p.x = cam.x;
+      platformCollision(p);
+      if (p.y > C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); return; }
+
+      emitDashFire(particles, p.x + p.w / 2, p.y + p.h / 2, p.dashDir);
+
+      for (const e of enemies) {
+        if (!e.alive || p.dashHitSet.has(e)) continue;
+        if (rectsOverlap(p.bounds(), e.bounds())) {
+          p.dashHitSet.add(e);
+          e.hp -= C.DASH_DAMAGE;
+          emitHit(particles, e.x + e.w / 2, e.y + e.h / 2);
+          triggerShake(5, 0.12);
+          if (e.hp <= 0) killEnemy(e);
+          else if (e.type === 'grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
+        }
+      }
+      if (boss && boss.alive && !p.dashHitSet.has(boss) && rectsOverlap(p.bounds(), boss.bounds())) {
+        p.dashHitSet.add(boss);
+        if (boss.takeDamage()) {
+          boss.takeDamage();
+          emitHit(particles, boss.x + boss.w / 2, boss.y + boss.h / 2);
+          if (boss.hp <= 0) killBoss();
+        }
+      }
+
+      p.facing    = p.dashDir;
+      p.state     = 'attack'; p.prevState = 'attack';
+      p.animTimer += dt;
+      if (p.animTimer > 0.06) { p.animFrame++; p.animTimer = 0; }
+      if (p.invincible > 0)     p.invincible     -= dt;
+      if (p.attackCooldown > 0) p.attackCooldown -= dt;
+      if (throwCooldown > 0)    throwCooldown    -= dt;
+      if (ammoDisplayTimer > 0) ammoDisplayTimer  = Math.max(0, ammoDisplayTimer - dt);
+      return;
+    }
+    p.dashing = false;   // dash expired — fall through to normal physics this frame
+  }
+
+  // ── Ladder detection ────────────────────────────────────────────────────
+  if (p.ladderCooldown > 0) p.ladderCooldown -= dt;
+  p.onLadder = false;
+  let _activeLadder = null;
+  const _lcx = p.x + p.w / 2;
+  for (const l of ladders) {
+    if (_lcx > l.x && _lcx < l.x + l.w && p.y + p.h > l.y && p.y < l.y + l.h) {
+      if (p.ladderCooldown <= 0) { p.onLadder = true; _activeLadder = l; }
+      break;
+    }
+  }
+
   const crouch = keys['ArrowDown']  || keys['KeyS'];
-  p.crouching  = !!(crouch && p.onGround);
+  p.crouching  = !!(crouch && p.onGround && !p.onLadder);
   const spd    = p.crouching ? C.CROUCH_SPEED : C.PLAYER_SPEED;
   p.vx = right ? spd : left ? -spd : 0;
   if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
 
   if (jumpPressed && p.jumpsLeft > 0) {
-    const wasDouble = p.jumpsLeft === 1;
-    p.vy = C.JUMP_V; p.jumpsLeft--;
-    if (wasDouble) { emitDoubleJump(particles, p.x + p.w/2, p.y + p.h); Audio.djump(); }
-    else Audio.jump();
+    // On ladder: only Space jumps off; ArrowUp/W climb instead of jump
+    const allowJump = !p.onLadder || keyJustPressed('Space');
+    if (allowJump) {
+      const wasDouble = p.jumpsLeft === 1;
+      p.vy = C.JUMP_V; p.jumpsLeft--;
+      if (p.onLadder) { p.onLadder = false; p.ladderCooldown = 0.4; _activeLadder = null; }
+      if (wasDouble) { emitDoubleJump(particles, p.x + p.w/2, p.y + p.h); Audio.djump(); }
+      else Audio.jump();
+    }
   }
 
   if (attackPressed && p.attackCooldown <= 0) {
@@ -111,12 +198,20 @@ function updatePlayer(dt) {
   if (p.invincible > 0)       p.invincible     -= dt;
   if (throwCooldown > 0)      throwCooldown    -= dt;
 
-  // Variable jump height: heavier gravity when jump key released while rising
-  const jumpHeld = !!(keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
+  // Ladder climbing overrides normal gravity
   p.onGround = false;
-  p.vy += C.GRAVITY * ((!jumpHeld && p.vy < 0) ? 3.5 : 1.0) * dt;
-  p.x  += p.vx * dt;
-  p.y  += p.vy * dt;
+  if (p.onLadder) {
+    const climbUp   = keys['ArrowUp']   || keys['KeyW'];
+    const climbDown = keys['ArrowDown'] || keys['KeyS'];
+    p.vy = climbUp ? -C.LADDER_SPEED : climbDown ? C.LADDER_SPEED : 0;
+    p.x  = _activeLadder.x + (_activeLadder.w - p.w) / 2;  // centre on ladder
+    p.jumpsLeft = Math.max(p.jumpsLeft, 1);
+  } else {
+    const jumpHeld = !!(keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
+    p.vy += C.GRAVITY * ((!jumpHeld && p.vy < 0) ? 3.5 : 1.0) * dt;
+  }
+  p.x += p.vx * dt;
+  p.y += p.vy * dt;
 
   if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
 
@@ -198,11 +293,27 @@ function updateEnemies(dt) {
       e.update(dt, player, shurikens);
     }
 
+    // Capture overlap BEFORE push-out — push moves player to exact edge so
+    // rectsOverlap returns false afterwards, which would suppress contact damage.
+    const wasOverlapping = !player.hiding && rectsOverlap(player.bounds(), e.bounds());
+    if (wasOverlapping) {
+      const overlapL = (e.x + e.w) - player.x;
+      const overlapR = (player.x + player.w) - e.x;
+      if (overlapL < overlapR) {
+        player.x = e.x + e.w;
+        player.facing = -1;
+        if (player.vx < 0) player.vx = 0;
+      } else {
+        player.x = e.x - player.w;
+        player.facing = 1;
+        if (player.vx > 0) player.vx = 0;
+      }
+    }
     if (player.attackActive) {
       const hb = player.attackHitbox();
       if (rectsOverlap(hb, e.bounds())) {
         if (e.type === 'grunt' && e.aiState !== 'alert' && e.isBehind(player)) {
-          killEnemy(e, true);   // stealth kill from behind
+          killEnemy(e, true);
         } else {
           e.hp--;
           emitHit(particles, e.x + e.w/2, e.y + e.h/2);
@@ -211,21 +322,9 @@ function updateEnemies(dt) {
         }
       }
     }
-    // Solid collision: push player out so enemies are physical obstacles
-    if (!player.hiding && rectsOverlap(player.bounds(), e.bounds())) {
-      const overlapL = (e.x + e.w) - player.x;
-      const overlapR = (player.x + player.w) - e.x;
-      if (overlapL < overlapR) {
-        player.x = e.x + e.w;
-        if (player.vx < 0) player.vx = 0;
-      } else {
-        player.x = e.x - player.w;
-        if (player.vx > 0) player.vx = 0;
-      }
-    }
-    // Only alert grunts deal contact damage (patrol grunts can be approached stealthily)
+    // Alert grunts and archers deal contact damage
     const dealsDmg = e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert');
-    if (dealsDmg && !player.hiding && player.invincible <= 0 && rectsOverlap(player.bounds(), e.bounds())) damagePlayer();
+    if (dealsDmg && wasOverlapping && player.invincible <= 0) damagePlayer();
   }
   enemies = enemies.filter(e => e.alive);
 }
@@ -391,6 +490,17 @@ function updatePickups(dt) {
   }
 }
 
+// ── Spikes ─────────────────────────────────────────────────────────────────────
+function updateSpikes() {
+  if (!player || player.hiding || player.invincible > 0) return;
+  for (const s of spikes) {
+    if (rectsOverlap(player.bounds(), s.damageBounds())) {
+      damagePlayer();
+      return;
+    }
+  }
+}
+
 // ── Combo ──────────────────────────────────────────────────────────────────────
 function updateCombo(dt) {
   if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) combo = 1; }
@@ -422,6 +532,7 @@ function update(dt) {
   updatePlayerShurikens(dt);
   updateBoss(dt);
   updatePickups(dt);
+  updateSpikes();
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);

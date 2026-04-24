@@ -39,7 +39,9 @@ function loadLevel(idx) {
   platforms       = ld.platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: 14 }));
   enemies         = [];
   coins           = [];
-  hidingSpots     = (ld.hidingSpots || []).map(h => new HidingSpot(h.type, h.x, h.y));
+  hidingSpots = (ld.hidingSpots || []).map(h => new HidingSpot(h.type, h.x, h.y, h.rotation || 0));
+  ladders     = (ld.ladders || []).map(l => new Ladder(l.x, l.y, l.w || 24, l.h || 96, l.rotation || 0));
+  spikes      = (ld.spikes  || []).map(s => new Spike(s.x, s.y, s.rotation !== undefined ? s.rotation : 180));
   pickups         = ld.pickups.map(p => new WeaponPickup(p.x, p.y, p.type));
   playerShurikens = [];
   shurikens       = [];

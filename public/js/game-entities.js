@@ -247,9 +247,18 @@ class Player {
     this.attackTimer = 0;
     this.attackCooldown = 0;
     this.invincible = 0;
-    this.crouching  = false;
-    this.hiding     = false;
-    this.hidingAt   = null;
+    this.crouching      = false;
+    this.hiding         = false;
+    this.hidingAt       = null;
+    this.onLadder       = false;
+    this.ladderCooldown = 0;
+    this.dashing        = false;
+    this.dashTimer      = 0;
+    this.dashDir        = 0;
+    this.dashCooldown   = 0;
+    this.dashHitSet     = new Set();
+    this.tapLeftTimer   = 0;
+    this.tapRightTimer  = 0;
     this.prevState = 'idle';
     this.lives = C.LIVES;
     this.alive = true;
@@ -348,6 +357,7 @@ class Grunt {
       this.x  += this.vx * dt;
       this.y  += this.vy * dt;
       _enemyGroundCollision(this);
+      _enemySpikeCollision(this);
       // Jump when player is on a higher surface
       if (this.onGround && player.y < this.y - 50) {
         this.vy = C.JUMP_V * 0.80;
@@ -361,6 +371,7 @@ class Grunt {
       this.x  += this.vx * dt;
       this.y  += this.vy * dt;
       _enemyGroundCollision(this);
+      _enemySpikeCollision(this);
       // Snap back to home platform once close enough and grounded
       if (this.onGround && Math.abs(this.x - this.returnX) < 28) {
         this.x = Math.max(this.platform.x, Math.min(this.platform.x + this.platform.w - this.w, this.returnX));
@@ -392,6 +403,7 @@ class Grunt {
       this.vy += C.GRAVITY * dt;
       this.y  += this.vy * dt;
       _enemyGroundCollision(this);
+      _enemySpikeCollision(this);
     }
     const isMoving = this.aiState === 'alert' || (this.aiState !== 'patrol' && this.aiState !== 'return') ||
                      (this.patrolWait <= 0 && this.aiState === 'patrol');
@@ -428,6 +440,7 @@ class Archer {
     this.x  += this.vx * dt;
     this.y  += this.vy * dt;
     _enemyGroundCollision(this);
+    _enemySpikeCollision(this);
 
     // Patrol within platform bounds
     const { x: px, w: pw } = this.platform;
@@ -474,12 +487,62 @@ class EnemyShuriken {
 
 // ── Hiding spots ──────────────────────────────────────────────────────────
 class HidingSpot {
-  constructor(type, x, y) {
-    this.type = type;   // 'barrel' | 'shadow'
-    this.x    = x;
-    this.y    = y;
-    if (type === 'barrel') { this.w = 28; this.h = 34; }
-    else                   { this.w = 42; this.h = 12; }
+  constructor(type, x, y, rotation = 0) {
+    this.type     = type;   // 'barrel' | 'shadow' | 'box'
+    this.x        = x;
+    this.y        = y;
+    this.rotation = rotation;
+    if (type === 'barrel')   { this.w = 28; this.h = 34; }
+    else if (type === 'box') { this.w = 36; this.h = 40; }
+    else                     { this.w = 42; this.h = 12; }
+  }
+}
+
+// ── Ladder ────────────────────────────────────────────────────────────────
+class Ladder {
+  constructor(x, y, w, h, rotation = 0) {
+    this.x = x; this.y = y;
+    this.w = w || 24; this.h = h || 96;
+    this.rotation = rotation;
+  }
+  bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+}
+
+// ── Spike hazard ──────────────────────────────────────────────────────────
+class Spike {
+  constructor(x, y, rotation = 180) {
+    this.x = x; this.y = y;
+    this.w = 48; this.h = 48;
+    this.rotation = rotation;  // 180 = spikes face up (floor hazard default)
+  }
+  // Active zone: the spike tips are at the bottom of the source image.
+  // After rotation they appear on different world edges.
+  //   0°  → tips at world-bottom   90° → tips at world-right
+  //   180°→ tips at world-top      270°→ tips at world-left
+  damageBounds() {
+    const tip = 0.42;
+    const r   = ((Math.round((this.rotation || 0) / 90) * 90) % 360 + 360) % 360;
+    const { x, y, w, h } = this;
+    if (r === 0)   return { x, y: y + h * (1 - tip), w, h: h * tip };
+    if (r === 90)  return { x: x + w * (1 - tip), y, w: w * tip, h };
+    if (r === 180) return { x, y, w, h: h * tip };
+    if (r === 270) return { x, y, w: w * tip, h };
+    return { x, y, w, h };
+  }
+  bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+}
+
+// ── Spike blocking for enemies ────────────────────────────────────────────
+function _enemySpikeCollision(e) {
+  if (typeof spikes === 'undefined') return;
+  for (const s of spikes) {
+    const sb = s.bounds();
+    if (rectsOverlap(e.bounds(), sb)) {
+      e.vx    *= -1;
+      e.facing *= -1;
+      e.x = e.vx > 0 ? sb.x + sb.w + 1 : sb.x - e.w - 1;
+      return;
+    }
   }
 }
 

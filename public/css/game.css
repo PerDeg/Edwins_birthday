@@ -29,7 +29,7 @@ html {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 160px;
+  height: 210px;
   display: none;
   pointer-events: none;
   z-index: 10;
@@ -42,33 +42,38 @@ html {
 .touch-btn {
   position: absolute;
   pointer-events: all;
-  background: rgba(255,255,255,0.13);
-  border: 2px solid rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.15);
+  border: 2.5px solid rgba(255,255,255,0.35);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
-  color: rgba(255,255,255,0.75);
+  font-size: 1.8rem;
+  color: rgba(255,255,255,0.85);
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
 
-/* Base sizes (phones ~375px wide) */
-#btn-left  { width: 76px; height: 76px; bottom: 60px; left: 16px; }
-#btn-right { width: 76px; height: 76px; bottom: 60px; left: 104px; }
-#btn-jump  { width: 84px; height: 84px; bottom: 55px; right: 16px;  background: rgba(200,168,60,0.22); border-color: rgba(200,168,60,0.55); }
-#btn-attack{ width: 70px; height: 70px; bottom: 68px; right: 112px; background: rgba(230,57,70,0.22);  border-color: rgba(230,57,70,0.50); }
-#btn-throw { width: 64px; height: 64px; bottom: 140px;right: 112px; background: rgba(79,195,247,0.22); border-color: rgba(79,195,247,0.50); }
+/* Base sizes (phones ~375px wide)
+   Left cluster: ◀  ▶ with ▼ centered below them
+   Right cluster: ⬆ (big), ⚔ to its left, ✦ above ⚔ */
+#btn-left  { width: 88px; height: 88px; bottom: 108px; left: 10px; }
+#btn-right { width: 88px; height: 88px; bottom: 108px; left: 110px; }
+#btn-down  { width: 76px; height: 76px; bottom: 24px;  left: 71px;  background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.25); }
+#btn-jump  { width: 96px; height: 96px; bottom: 100px; right: 10px; background: rgba(200,168,60,0.25); border-color: rgba(200,168,60,0.60); }
+#btn-attack{ width: 82px; height: 82px; bottom: 110px; right: 118px; background: rgba(230,57,70,0.25);  border-color: rgba(230,57,70,0.55); }
+#btn-throw { width: 72px; height: 72px; bottom: 196px; right: 122px; background: rgba(79,195,247,0.25); border-color: rgba(79,195,247,0.55); }
 
 /* Larger screens (tablets / landscape phones) */
 @media (min-width: 600px) and (pointer: coarse) {
-  #btn-left  { width: 88px; height: 88px; bottom: 64px; left: 24px; }
-  #btn-right { width: 88px; height: 88px; bottom: 64px; left: 124px; }
-  #btn-jump  { width: 96px; height: 96px; bottom: 60px; right: 24px; }
-  #btn-attack{ width: 80px; height: 80px; bottom: 76px; right: 132px; }
-  #btn-throw { width: 72px; height: 72px; bottom: 158px;right: 132px; }
+  #touch-controls { height: 230px; }
+  #btn-left  { width: 100px; height: 100px; bottom: 116px; left: 16px; }
+  #btn-right { width: 100px; height: 100px; bottom: 116px; left: 128px; }
+  #btn-down  { width:  86px; height:  86px; bottom:  22px; left: 85px; }
+  #btn-jump  { width: 110px; height: 110px; bottom: 108px; right: 16px; }
+  #btn-attack{ width:  94px; height:  94px; bottom: 120px; right: 138px; }
+  #btn-throw { width:  82px; height:  82px; bottom: 218px; right: 142px; }
 }
 
 /* ── Score / name-entry overlay ─────────────────────────────────────────────── */

@@ -22,8 +22,13 @@ const E_TOOLS = [
     { id: 'boss',   label: 'BOSS',     hint: 'En per level. Placera vid slutet.' },
   ]},
   { group: 'Gömställen', items: [
-    { id: 'hiding-barrel', label: 'Tunna',    hint: 'Klicka för att placera en tunna att gömma sig i.' },
-    { id: 'hiding-shadow', label: 'Skugga',   hint: 'Klicka för att placera en skuggpool på marken.' },
+    { id: 'hiding-barrel', label: 'Tunna',  hint: 'Klicka för att placera en tunna att gömma sig i.' },
+    { id: 'hiding-box',    label: 'Låda',   hint: 'Klicka för att placera en trälåda att gömma sig bakom.' },
+    { id: 'hiding-shadow', label: 'Skugga', hint: 'Klicka för att placera en skuggpool på marken.' },
+  ]},
+  { group: 'Hinder', items: [
+    { id: 'ladder', label: 'Stege',  hint: 'Klicka för att placera en klätterbar stege.' },
+    { id: 'spike',  label: 'Spikar', hint: 'Klicka för att placera spikar (rotation 180° = spetsar upp).' },
   ]},
   { group: 'Föremål', items: [
     { id: 'pickup-heart',    label: 'Hjärta',     hint: 'Återställer liv eller ger gem-kraft.' },
@@ -40,7 +45,10 @@ const E_COLORS = {
   archer:             '#2050c8',
   boss:               '#9900cc',
   'hiding-barrel':    '#7a4020',
+  'hiding-box':       '#8b5e2b',
   'hiding-shadow':    '#180028',
+  'ladder':           '#c8a83c',
+  'spike':            '#b0b0b0',
   'pickup-heart':     '#e63946',
   'pickup-shuriken':  '#b0b0cc',
   'pickup-triple':    '#ff6b35',

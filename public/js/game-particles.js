@@ -123,6 +123,21 @@ function emitDoubleJump(particles, x, y) {
   }
 }
 
+function emitDashFire(particles, x, y, dir) {
+  const cols = ['#ff6b00', '#ff4500', '#ffaa00', '#ff2200', '#ffee00'];
+  for (let i = 0; i < 6; i++) {
+    const a = (dir > 0 ? Math.PI : 0) + (Math.random() - 0.5) * 1.4;
+    const spd = 120 + Math.random() * 200;
+    particles.push(new Particle(
+      x + (Math.random() - 0.5) * 18,
+      y + (Math.random() - 0.5) * 22,
+      Math.cos(a) * spd, Math.sin(a) * spd - 30,
+      cols[Math.floor(Math.random() * cols.length)],
+      2 + Math.random() * 4, 0.18, 0
+    ));
+  }
+}
+
 function emitHit(particles, x, y) {
   for (let i = 0; i < 8; i++) {
     const a = Math.random() * Math.PI * 2;
