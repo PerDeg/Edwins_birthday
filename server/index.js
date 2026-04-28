@@ -53,6 +53,16 @@ app.post('/api/rsvp', async (req, res) => {
   }
 });
 
+// GET /api/health — DB connectivity check
+app.get('/api/health', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT NOW() AS now, current_database() AS db');
+    res.json({ ok: true, db: r.rows[0].db, now: r.rows[0].now });
+  } catch (err) {
+    res.status(500).json({ ok: false, detail: err.message });
+  }
+});
+
 // GET /api/levels — all saved levels (public, used by game + editor to load)
 app.get('/api/levels', async (req, res) => {
   try {
@@ -138,7 +148,7 @@ app.post('/api/scores', async (req, res) => {
     res.status(201).json({ ok: true, rank });
   } catch (err) {
     console.error('Score submit error:', err);
-    res.status(500).json({ error: 'Serverfel.' });
+    res.status(500).json({ error: 'Serverfel.', detail: err.message });
   }
 });
 

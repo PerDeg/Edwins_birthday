@@ -37,6 +37,10 @@ async function initDb() {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      // Ensure columns added after initial deploy exist (safe on re-run)
+      await pool.query(`ALTER TABLE scores ADD COLUMN IF NOT EXISTS difficulty TEXT NOT NULL DEFAULT 'ninja'`);
+      await pool.query(`ALTER TABLE scores ADD COLUMN IF NOT EXISTS level      INTEGER NOT NULL DEFAULT 1`);
+      await pool.query(`ALTER TABLE scores ADD COLUMN IF NOT EXISTS kills      INTEGER NOT NULL DEFAULT 0`);
       console.log('Database initialized successfully.');
       return;
     } catch (err) {

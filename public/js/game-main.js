@@ -176,7 +176,7 @@ function finishSubmit(name) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-    .then(r => r.json())
+    .then(r => r.json().then(d => { if (!r.ok) throw new Error(d.detail || d.error || 'HTTP ' + r.status); return d; }))
     .then(d => {
       submitRank = d.rank;
       submitDone = true;
