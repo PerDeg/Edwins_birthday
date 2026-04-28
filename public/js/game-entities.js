@@ -451,15 +451,19 @@ class Archer {
     this.animTimer += dt;
     if (this.animTimer > 0.14) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
 
-    this.facing = player.x > this.x ? 1 : -1;
-    this.shootTimer -= dt;
-    if (this.shootTimer <= 0 && this.ammo > 0 && !player.hiding) {
-      this.shootTimer = this.shootInterval;
-      this.ammo--;
-      shurikens.push(new EnemyShuriken(
-        this.x + this.w / 2, this.y + this.h * 0.3,
-        player.x + player.w / 2, player.y + player.h * 0.4
-      ));
+    if (!player.hiding) {
+      this.facing = player.x > this.x ? 1 : -1;
+      this.shootTimer -= dt;
+      if (this.shootTimer <= 0 && this.ammo > 0) {
+        this.shootTimer = this.shootInterval;
+        this.ammo--;
+        shurikens.push(new EnemyShuriken(
+          this.x + this.w / 2, this.y + this.h * 0.3,
+          player.x + player.w / 2, player.y + player.h * 0.4
+        ));
+      }
+    } else if (this.shootTimer < 0) {
+      this.shootTimer = 0;  // freeze shoot timer while player is hidden
     }
   }
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
@@ -512,7 +516,7 @@ class Ladder {
 class Spike {
   constructor(x, y, rotation = 180) {
     this.x = x; this.y = y;
-    this.w = 48; this.h = 48;
+    this.w = 64; this.h = 64;
     this.rotation = rotation;  // 180 = spikes face up (floor hazard default)
   }
   // Active zone: the spike tips are at the bottom of the source image.
@@ -846,18 +850,18 @@ class Boss {
 
     if (this.type === 'samurai') {
       if (this.aiState === 'charge') {
-        this.vx = 0; this.aiState = 'pause'; this.aiTimer = 0.5;
+        this.vx = 0; this.aiState = 'pause'; this.aiTimer = 0.35;
       } else if (dist < 200) {
         this.vx = this.facing * 290; this.aiState = 'charge'; this.aiTimer = 0.52;
       } else {
-        this.vx = this.facing * 75; this.aiState = 'walk'; this.aiTimer = 0.9;
+        this.vx = this.facing * 110; this.aiState = 'walk'; this.aiTimer = 0.65;
       }
 
     } else if (this.type === 'archer-boss') {
       this._shoot(player, shurikens, 3);
-      this.vx = this.phase2 ? this.facing * 55 : 0;
+      this.vx = this.facing * (this.phase2 ? 80 : 40);
       this.aiState = 'shoot';
-      this.aiTimer = this.phase2 ? 1.5 : 2.0;
+      this.aiTimer = this.phase2 ? 1.2 : 1.6;
 
     } else if (this.type === 'demon') {
       if (this.phase2 && dist < 360 && this.onGround && Math.random() < 0.45) {
@@ -867,7 +871,7 @@ class Boss {
       } else if (dist < 240) {
         this.vx = this.facing * 230; this.aiState = 'charge'; this.aiTimer = 0.5;
       } else {
-        this.vx = this.facing * 95; this.aiState = 'walk'; this.aiTimer = 0.85;
+        this.vx = this.facing * 130; this.aiState = 'walk'; this.aiTimer = 0.6;
         if (this.phase2) this._shoot(player, shurikens, 2);
       }
     }

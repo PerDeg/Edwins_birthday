@@ -123,6 +123,24 @@ function emitDoubleJump(particles, x, y) {
   }
 }
 
+function emitDashImpact(particles, x, y, dir) {
+  const cols = ['#ffffff', '#ffee00', '#ff9900', '#ff4400', '#ff2200'];
+  // Shockwave ring
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2;
+    const spd = 160 + Math.random() * 260;
+    particles.push(new Particle(x, y, Math.cos(a)*spd, Math.sin(a)*spd,
+      cols[i % cols.length], 3.5 + Math.random()*4.5, 0.32, 0));
+  }
+  // Extra burst forward
+  for (let i = 0; i < 10; i++) {
+    const a = (dir > 0 ? 0 : Math.PI) + (Math.random()-0.5) * 1.1;
+    const spd = 220 + Math.random() * 320;
+    particles.push(new Particle(x, y, Math.cos(a)*spd, Math.sin(a)*spd - 60,
+      cols[Math.floor(Math.random() * cols.length)], 4 + Math.random()*5, 0.28, 0));
+  }
+}
+
 function emitDashFire(particles, x, y, dir) {
   const cols = ['#ff6b00', '#ff4500', '#ffaa00', '#ff2200', '#ffee00'];
   for (let i = 0; i < 6; i++) {

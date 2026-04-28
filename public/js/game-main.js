@@ -183,9 +183,20 @@ function finishSubmit(name) {
       if (_submitRankEl && _rankNum) {
         _rankNum.textContent = d.rank;
         _submitRankEl.style.display = 'block';
+        _submitRankEl.style.color = '';
       }
+      fetchLeaderboard();
     })
-    .catch(e => console.error('Score submit error:', e));
+    .catch(e => {
+      console.error('Score submit error:', e);
+      if (_submitRankEl) {
+        _submitRankEl.textContent = 'Kunde inte spara — kontrollera anslutningen.';
+        _submitRankEl.style.display = 'block';
+        _submitRankEl.style.color = '#ff6060';
+      }
+      const saveBtn = document.getElementById('btn-save-score');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Försök igen'; }
+    });
 }
 
 function fetchLeaderboard() {

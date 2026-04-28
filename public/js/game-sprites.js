@@ -208,5 +208,26 @@ const Sprites = (() => {
     return true;
   }
 
-  return { load, has, hasSeq, draw, drawSeq, drawRotated, drawCoin, drawTile, drawBg };
+  // Draw a sprite tiled to fill w×h — preserves aspect ratio by repeating square tiles.
+  // Used for objects like ladders where the logical size doesn't match the sprite aspect ratio.
+  function drawTiled(ctx, name, x, y, w, h, angle) {
+    const img = _imgs[name];
+    if (!img) return false;
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    if (angle) ctx.rotate(angle);
+    ctx.translate(-w / 2, -h / 2);
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    const ts = w;  // tile size = width (square tiles)
+    const rows = Math.ceil(h / ts) + 1;
+    for (let r = 0; r < rows; r++) {
+      ctx.drawImage(img, 0, r * ts, ts, ts);
+    }
+    ctx.restore();
+    return true;
+  }
+
+  return { load, has, hasSeq, draw, drawSeq, drawRotated, drawTiled, drawCoin, drawTile, drawBg };
 })();

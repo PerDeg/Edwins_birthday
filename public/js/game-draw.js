@@ -50,9 +50,8 @@ function drawBox(ctx, spot) {
 
 function drawLadder(ctx, l) {
   if (typeof Sprites !== 'undefined' &&
-      Sprites.drawRotated(ctx, 'prop-ladder',
-        l.x + l.w / 2, l.y + l.h / 2,
-        l.w, l.h, (l.rotation || 0) * Math.PI / 180)) return;
+      Sprites.drawTiled(ctx, 'prop-ladder',
+        l.x, l.y, l.w, l.h, (l.rotation || 0) * Math.PI / 180)) return;
   // Fallback: rails + rungs
   const { x, y, w, h } = l;
   ctx.save();
@@ -252,19 +251,20 @@ function draw(dt) {
       ctx.globalAlpha = 1;
       ctx.restore();
     }
-    // Ground glow — helps player spot themselves on small screens
-    if (!player.hiding) {
-      const pulse = 0.4 + Math.sin(Date.now() * 0.005) * 0.2;
-      ctx.save();
-      ctx.globalAlpha = pulse;
-      ctx.fillStyle = '#00ddff';
-      ctx.beginPath();
-      ctx.ellipse(player.x + player.w / 2, player.y + player.h,
-                  player.w * 0.85, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
     if (player.dashing) {
+      // Ghost after-images trailing behind the dash
+      const _origX = player.x;
+      const _origInv = player.invincible;
+      player.invincible = 0;
+      for (let i = 3; i >= 1; i--) {
+        player.x = _origX - player.dashDir * i * 18;
+        ctx.save();
+        ctx.globalAlpha = 0.22 / i;
+        drawNinjaPlayer(ctx, player);
+        ctx.restore();
+      }
+      player.x = _origX;
+      player.invincible = _origInv;
       // Fire aura — elongated glow in dash direction, trail behind
       const flicker = 0.75 + Math.sin(Date.now() * 0.06) * 0.25;
       const cx = player.x + player.w / 2 + player.dashDir * 8;

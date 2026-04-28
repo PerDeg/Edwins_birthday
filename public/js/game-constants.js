@@ -1,7 +1,7 @@
 'use strict';
 
 const C = {
-  W: 960, H: 540, GROUND_Y: 490,
+  W: 1200, H: 675, GROUND_Y: 612,
 
   GRAVITY: 900,
   JUMP_V: -520,
@@ -40,9 +40,9 @@ const C = {
   // Health system
   PLAYER_HP:       100,   // max player HP (percentage)
   HEART_HEAL:       20,   // HP restored per heart pickup
-  CONTACT_DAMAGE:    5,   // HP lost per enemy hit
-  ENEMY_HP_GRUNT:    3,   // hits to kill a grunt
-  ENEMY_HP_ARCHER:   3,   // hits to kill an archer
+  CONTACT_DAMAGE:   12,   // HP lost per enemy hit
+  ENEMY_HP_GRUNT:    2,   // hits to kill a grunt
+  ENEMY_HP_ARCHER:   2,   // hits to kill an archer
   ARCHER_AMMO:       6,   // shots before archer stops shooting
 
   // Stealth system
@@ -110,14 +110,14 @@ const C = {
       coins: [],
       hidingSpots: [
         { type: 'barrel', x: 195,  y: 356 },   // on plat 0 (y 390)
-        { type: 'shadow', x: 340,  y: 478 },   // ground
+        { type: 'shadow', x: 340,  y: 600 },   // ground
         { type: 'barrel', x: 660,  y: 386 },   // on plat 2 (y 420)
-        { type: 'shadow', x: 760,  y: 478 },   // ground
+        { type: 'shadow', x: 760,  y: 600 },   // ground
         { type: 'barrel', x: 1075, y: 356 },   // on plat 4 (y 390)
         { type: 'barrel', x: 1510, y: 396 },   // on plat 6 (y 430)
-        { type: 'shadow', x: 1580, y: 478 },   // ground
+        { type: 'shadow', x: 1580, y: 600 },   // ground
         { type: 'barrel', x: 1910, y: 266 },   // on plat 8 (y 300)
-        { type: 'shadow', x: 2200, y: 478 },   // ground
+        { type: 'shadow', x: 2200, y: 600 },   // ground
         { type: 'barrel', x: 2605, y: 256 },   // on plat 11 (y 290)
       ],
       pickups: [
@@ -183,16 +183,16 @@ const C = {
       coins: [],
       hidingSpots: [
         { type: 'barrel', x: 395,  y: 286 },   // on plat 1 (y 320)
-        { type: 'shadow', x: 530,  y: 478 },   // ground
+        { type: 'shadow', x: 530,  y: 600 },   // ground
         { type: 'barrel', x: 1185, y: 356 },   // on plat 5 (y 390)
-        { type: 'shadow', x: 1290, y: 478 },   // ground
+        { type: 'shadow', x: 1290, y: 600 },   // ground
         { type: 'barrel', x: 2055, y: 366 },   // on plat 9 (y 400)
-        { type: 'shadow', x: 2160, y: 478 },   // ground
+        { type: 'shadow', x: 2160, y: 600 },   // ground
         { type: 'barrel', x: 2495, y: 346 },   // on plat 11 (y 380)
-        { type: 'shadow', x: 2820, y: 478 },   // ground
+        { type: 'shadow', x: 2820, y: 600 },   // ground
         { type: 'barrel', x: 2955, y: 356 },   // on plat 13 (y 390)
         { type: 'barrel', x: 3435, y: 356 },   // on plat 15 (y 390)
-        { type: 'shadow', x: 3580, y: 478 },   // ground
+        { type: 'shadow', x: 3580, y: 600 },   // ground
       ],
       pickups: [
         { type: 'shuriken', x: 800,  y: 338 },
@@ -267,20 +267,20 @@ const C = {
       coins: [],
       hidingSpots: [
         { type: 'barrel', x: 165,  y: 356 },   // on plat 0 (y 390)
-        { type: 'shadow', x: 300,  y: 478 },   // ground
+        { type: 'shadow', x: 300,  y: 600 },   // ground
         { type: 'barrel', x: 575,  y: 386 },   // on plat 2 (y 420)
         { type: 'barrel', x: 1140, y: 266 },   // on plat 5 (y 300)
-        { type: 'shadow', x: 1340, y: 478 },   // ground
+        { type: 'shadow', x: 1340, y: 600 },   // ground
         { type: 'barrel', x: 1510, y: 266 },   // on plat 7 (y 300)
-        { type: 'shadow', x: 1740, y: 478 },   // ground
+        { type: 'shadow', x: 1740, y: 600 },   // ground
         { type: 'barrel', x: 1960, y: 246 },   // on plat 9 (y 280)
         { type: 'barrel', x: 2375, y: 256 },   // on plat 11 (y 290)
-        { type: 'shadow', x: 2600, y: 478 },   // ground
+        { type: 'shadow', x: 2600, y: 600 },   // ground
         { type: 'barrel', x: 2815, y: 266 },   // on plat 13 (y 300)
-        { type: 'shadow', x: 3040, y: 478 },   // ground
+        { type: 'shadow', x: 3040, y: 600 },   // ground
         { type: 'barrel', x: 3250, y: 246 },   // on plat 15 (y 280)
         { type: 'barrel', x: 3700, y: 256 },   // on plat 17 (y 290)
-        { type: 'shadow', x: 3940, y: 478 },   // ground
+        { type: 'shadow', x: 3940, y: 600 },   // ground
         { type: 'barrel', x: 4180, y: 251 },   // on plat 19 (y 285)
       ],
       pickups: [

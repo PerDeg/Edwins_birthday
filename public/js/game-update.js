@@ -119,19 +119,25 @@ function updatePlayer(dt) {
         if (rectsOverlap(p.bounds(), e.bounds())) {
           p.dashHitSet.add(e);
           e.hp -= C.DASH_DAMAGE;
-          emitHit(particles, e.x + e.w / 2, e.y + e.h / 2);
-          triggerShake(5, 0.12);
+          e.vx = p.dashDir * 320;   // knock back
+          e.vy = -220;              // knock up
+          emitDashImpact(particles, e.x + e.w / 2, e.y + e.h / 2, p.dashDir);
+          screenFlash = Math.max(screenFlash, 0.45);
+          triggerShake(9, 0.22);
+          Audio.hit();
           if (e.hp <= 0) killEnemy(e);
           else if (e.type === 'grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
       if (boss && boss.alive && !p.dashHitSet.has(boss) && rectsOverlap(p.bounds(), boss.bounds())) {
         p.dashHitSet.add(boss);
-        if (boss.takeDamage()) {
-          boss.takeDamage();
-          emitHit(particles, boss.x + boss.w / 2, boss.y + boss.h / 2);
-          if (boss.hp <= 0) killBoss();
-        }
+        boss.takeDamage();
+        boss.takeDamage();
+        emitDashImpact(particles, boss.x + boss.w / 2, boss.y + boss.h / 2, p.dashDir);
+        screenFlash = Math.max(screenFlash, 0.45);
+        triggerShake(9, 0.22);
+        Audio.hit();
+        if (boss.hp <= 0) killBoss();
       }
 
       p.facing    = p.dashDir;
@@ -295,7 +301,8 @@ function updateEnemies(dt) {
 
     // Capture overlap BEFORE push-out — push moves player to exact edge so
     // rectsOverlap returns false afterwards, which would suppress contact damage.
-    const wasOverlapping = !player.hiding && rectsOverlap(player.bounds(), e.bounds());
+    // Dashing player powers through enemies — skip push-out entirely.
+    const wasOverlapping = !player.hiding && !player.dashing && rectsOverlap(player.bounds(), e.bounds());
     if (wasOverlapping) {
       const overlapL = (e.x + e.w) - player.x;
       const overlapR = (player.x + player.w) - e.x;
@@ -501,6 +508,17 @@ function updateSpikes() {
   }
 }
 
+// ── Boss barrier — player can't run past a living boss ─────────────────────────
+function _applyBossBarrier() {
+  if (!boss || !boss.alive || !player) return;
+  const limit = boss.x + boss.w + 90 - player.w;
+  if (player.x > limit) {
+    player.x = limit;
+    if (player.vx > 0) player.vx = 0;
+    if (player.dashing && player.dashDir > 0) player.dashing = false;
+  }
+}
+
 // ── Combo ──────────────────────────────────────────────────────────────────────
 function updateCombo(dt) {
   if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) combo = 1; }
@@ -527,6 +545,7 @@ function update(dt) {
   if (gameState !== STATE.PLAYING) return;
 
   updatePlayer(dt);
+  _applyBossBarrier();
   updateEnemies(dt);
   updateShurikens(dt);
   updatePlayerShurikens(dt);
