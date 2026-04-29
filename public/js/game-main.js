@@ -202,7 +202,7 @@ function finishSubmit(name) {
 function fetchLeaderboard() {
   fetch('/api/scores')
     .then(r => r.json())
-    .then(d => { leaderboard = d; })
+    .then(d => { leaderboard = Array.isArray(d) ? d : []; })
     .catch(e => console.error('Leaderboard fetch error:', e));
 }
 
