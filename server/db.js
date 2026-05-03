@@ -41,6 +41,8 @@ async function initDb() {
       await pool.query(`ALTER TABLE scores ADD COLUMN IF NOT EXISTS difficulty TEXT NOT NULL DEFAULT 'ninja'`);
       await pool.query(`ALTER TABLE scores ADD COLUMN IF NOT EXISTS level      INTEGER NOT NULL DEFAULT 1`);
       await pool.query(`ALTER TABLE scores ADD COLUMN IF NOT EXISTS kills      INTEGER NOT NULL DEFAULT 0`);
+      // Drop legacy difficulty check constraint if it exists (game uses 'ninja' only)
+      await pool.query(`ALTER TABLE scores DROP CONSTRAINT IF EXISTS scores_difficulty_check`);
       console.log('Database initialized successfully.');
       return;
     } catch (err) {
