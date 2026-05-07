@@ -39,6 +39,8 @@ html {
   #touch-controls { display: block; }
 }
 
+#touch-controls.hidden { display: none !important; }
+
 .touch-btn {
   position: absolute;
   pointer-events: all;

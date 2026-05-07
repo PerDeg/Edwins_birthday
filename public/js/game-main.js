@@ -150,6 +150,7 @@ function _hideMenu() {
 // ── Loop timestamp ─────────────────────────────────────────────────────────────
 let lastTime = 0;
 let slowMoTimer = 0;
+let gemWave = null;   // expanding ring visualisation for gem special
 
 // ── Canvas UI click handler (in-game screens only) ────────────────────────────
 function handleClick() {
@@ -246,6 +247,9 @@ function loop(now) {
   if (gameState === STATE.VICTORY && !_victoryShown) {
     _victoryShown = true; startSubmit();
   }
+
+  // Always sync touch-button visibility to game state
+  _setTouchControls(gameState === STATE.PLAYING);
 
   Object.assign(prevKeys, keys);
   requestAnimationFrame(loop);

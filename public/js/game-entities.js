@@ -484,8 +484,11 @@ class EnemyShuriken {
     this.rot = 0;
     this.w = 14; this.h = 14;
     this.alive = true;
+    this.trail = [];
   }
   update(dt, camX) {
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > 7) this.trail.shift();
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.rot += 9 * dt;

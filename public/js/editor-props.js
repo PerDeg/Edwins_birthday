@@ -31,13 +31,29 @@ function eRenderProps() {
   if (col === 'platforms') {
     const p = ld.platforms[idx];
     titleEl.textContent = 'Plattform';
+    const movingChecked = p.moving ? ' checked' : '';
+    const showMove = p.moving ? '' : 'display:none';
     bodyEl.innerHTML =
       _row('X',     _num('pp-x', p.x, 0, 20000, EGRID)) +
       _row('Y',     _num('pp-y', p.y, 0, EGROUND_Y, EGRID)) +
-      _row('Bredd', _num('pp-w', p.w, EGRID, 2000, EGRID));
+      _row('Bredd', _num('pp-w', p.w, EGRID, 2000, EGRID)) +
+      `<div class="prop-row"><label><input type="checkbox" id="pp-moving"${movingChecked}> Rörlig plattform</label></div>` +
+      `<div id="pp-move-opts" style="${showMove}">` +
+        _row('Riktning', _sel('pp-axis', [['x','Horisontell ◀▶'],['y','Vertikal ▲▼']], p.axis || 'x')) +
+        _row('Räckvidd', _num('pp-range', p.range || 80, 16, 800, 8)) +
+        _row('Hastighet', _num('pp-speed', p.speed || 55, 10, 500, 5)) +
+      `</div>`;
     _bindNum('pp-x', v => { p.x = v; });
     _bindNum('pp-y', v => { p.y = v; });
     _bindNum('pp-w', v => { p.w = v; });
+    _bindChange('pp-moving', () => {
+      p.moving = document.getElementById('pp-moving').checked;
+      const opts = document.getElementById('pp-move-opts');
+      if (opts) opts.style.display = p.moving ? '' : 'none';
+    });
+    _bindChange('pp-axis',  v => { p.axis  = v; });
+    _bindNum('pp-range',    v => { p.range = v; });
+    _bindNum('pp-speed',    v => { p.speed = v; });
 
   } else if (col === 'enemies') {
     const e = ld.enemies[idx];

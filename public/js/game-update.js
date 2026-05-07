@@ -210,6 +210,13 @@ function updatePlayer(dt) {
     }
   }
 
+  // Ground pound — down-press in air drops fast and smashes enemies on landing
+  if (downJust && !p.onGround && !p.onLadder && !p.groundPound) {
+    p.groundPound = true;
+    p.vy = Math.max(p.vy, 580);
+    emitDust(particles, p.x + p.w / 2, p.y + p.h);
+  }
+
   if (attackPressed && p.attackCooldown <= 0) {
     if (gemPower) {
       triggerGemSpecial();
@@ -262,11 +269,40 @@ function updatePlayer(dt) {
   p.state = p.attacking ? 'attack' : p.crouching ? 'crouch' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
   if (p.state !== prevState) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
 
-  // Landing impact
+  // Landing impact + ground pound hit
   if (p.state === 'idle' || p.state === 'run') {
     if (prevState === 'jump' && p._prevVy > 220) {
       emitLandingImpact(particles, p.x + p.w / 2, p.y + p.h, p._prevVy);
       if (p._prevVy > 400) triggerShake(4, 0.12);
+    }
+    if (p.groundPound) {
+      p.groundPound = false;
+      triggerShake(9, 0.28);
+      emitLandingImpact(particles, p.x + p.w / 2, p.y + p.h, 700);
+      Audio.hit();
+      const GP_RANGE = 80;
+      const pcx = p.x + p.w / 2;
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        const dx = Math.abs((e.x + e.w / 2) - pcx);
+        const dy = e.y + e.h / 2 - (p.y + p.h);
+        if (dx < GP_RANGE && dy > -50 && dy < 90) {
+          e.hp--;
+          e.hitFlash = 0.15;
+          e.vx = (e.x < p.x ? -1 : 1) * 240;
+          e.vy = -300;
+          emitHit(particles, e.x + e.w / 2, e.y + e.h / 2);
+          if (e.hp <= 0) killEnemy(e);
+        }
+      }
+      if (boss && boss.alive) {
+        const dx = Math.abs((boss.x + boss.w / 2) - pcx);
+        if (dx < GP_RANGE + 30) {
+          boss.takeDamage();
+          emitHit(particles, boss.x + boss.w / 2, boss.y + boss.h / 2);
+          if (boss.hp <= 0) killBoss();
+        }
+      }
     }
   }
   p._prevVy = p.vy;
@@ -312,26 +348,48 @@ function throwWeapon() {
 }
 
 // ── Gem special attack ─────────────────────────────────────────────────────────
+const GEM_SPECIAL_RANGE = 290;
+
 function triggerGemSpecial() {
   gemPower = false;
   gemGlowTimer = 0;
-  screenFlash = 0.6;
-  triggerShake(8, 0.3);
+  screenFlash = 0.55;
+  triggerShake(8, 0.28);
   Audio.levelUp();
-  // Deal 2 hits to every visible enemy
-  const visL = cam.x - 40, visR = cam.x + C.W + 40;
-  for (const e of enemies) {
-    if (!e.alive || e.x + e.w < visL || e.x > visR) continue;
-    e.hp = Math.max(0, e.hp - 2);
-    if (e.hp <= 0) {
-      killEnemy(e);
-      emitEnemyDeath(particles, e.x + e.w/2, e.y + e.h/2);
-    } else {
-      emitHit(particles, e.x + e.w/2, e.y + e.h/2);
-    }
+
+  const pcx = player.x + player.w / 2;
+  const pcy = player.y + player.h / 2;
+
+  // Launch expanding ring visual
+  gemWave = { x: pcx, y: pcy, r: 10, maxR: GEM_SPECIAL_RANGE, timer: 0.55 };
+
+  // Particle burst at origin
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2;
+    const spd = 120 + Math.random() * 200;
+    particles.push(new Particle(pcx, pcy, Math.cos(a)*spd, Math.sin(a)*spd,
+      Math.random() > 0.5 ? '#a0f0ff' : '#ffffff', 3 + Math.random()*4, 0.45, 0));
   }
-  if (boss && boss.alive && boss.x + boss.w > visL && boss.x < visR) {
-    boss.takeDamage(); boss.takeDamage();
+
+  // Hit enemies within radius, staggered by distance for wave feel
+  const hits = enemies
+    .filter(e => e.alive)
+    .map(e => ({ e, dist: Math.hypot(e.x + e.w/2 - pcx, e.y + e.h/2 - pcy) }))
+    .filter(({dist}) => dist < GEM_SPECIAL_RANGE)
+    .sort((a, b) => a.dist - b.dist);
+
+  hits.forEach(({ e }) => {
+    e.hp--;
+    e.hitFlash = 0.15;
+    const ang = Math.atan2(e.y + e.h/2 - pcy, e.x + e.w/2 - pcx);
+    e.vx = Math.cos(ang) * 280;
+    e.vy = Math.sin(ang) * 280 - 100;
+    if (e.hp <= 0) { killEnemy(e); emitEnemyDeath(particles, e.x + e.w/2, e.y + e.h/2); }
+    else emitHit(particles, e.x + e.w/2, e.y + e.h/2);
+  });
+
+  if (boss && boss.alive && Math.hypot(boss.x + boss.w/2 - pcx, boss.y + boss.h/2 - pcy) < GEM_SPECIAL_RANGE) {
+    boss.takeDamage();
     emitHit(particles, boss.x + boss.w/2, boss.y + boss.h/2);
     if (boss.hp <= 0) killBoss();
   }
@@ -655,6 +713,11 @@ function update(dt) {
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);
+  if (gemWave) {
+    gemWave.timer -= dt;
+    gemWave.r = gemWave.maxR * (1 - gemWave.timer / 0.55);
+    if (gemWave.timer <= 0) gemWave = null;
+  }
   if (ammoDisplayTimer > 0) ammoDisplayTimer = Math.max(0, ammoDisplayTimer - dt);
 
   for (const p of particles)     p.update(dt);

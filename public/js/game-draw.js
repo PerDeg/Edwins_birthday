@@ -262,6 +262,29 @@ function draw(dt) {
 
   for (const s of shurikens) {
     if (s.x < cam.x - 40 || s.x > cam.x + C.W + 40) continue;
+    // Trail
+    if (s.trail) {
+      for (let i = 0; i < s.trail.length; i++) {
+        const t = s.trail[i];
+        const frac = (i + 1) / s.trail.length;
+        ctx.save();
+        ctx.globalAlpha = frac * 0.45;
+        ctx.fillStyle = i > s.trail.length * 0.5 ? '#ff6600' : '#ffcc00';
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 2 + frac * 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    // Glow ring
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    const _sg = ctx.createRadialGradient(s.x, s.y, 1, s.x, s.y, 14);
+    _sg.addColorStop(0, 'rgba(255,100,0,0.9)');
+    _sg.addColorStop(1, 'rgba(255,30,0,0)');
+    ctx.fillStyle = _sg;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
     drawShuriken(ctx, s.x, s.y, s.rot);
   }
   for (const s of playerShurikens) {
@@ -363,6 +386,25 @@ function draw(dt) {
 
     // Draw the active hiding spot on top of the player so they appear inside it
     if (player.hidingAt) drawHidingSpot(ctx, player.hidingAt);
+  }
+
+  // Gem shockwave ring
+  if (gemWave) {
+    const frac = gemWave.timer / 0.55;
+    ctx.save();
+    ctx.globalAlpha = frac * 0.8;
+    ctx.strokeStyle = '#a0f0ff';
+    ctx.lineWidth = 4 + (1 - frac) * 8;
+    ctx.beginPath();
+    ctx.arc(gemWave.x, gemWave.y, gemWave.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = frac * 0.3;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(gemWave.x, gemWave.y, gemWave.r * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   for (const t of floatingTexts) t.draw(ctx);

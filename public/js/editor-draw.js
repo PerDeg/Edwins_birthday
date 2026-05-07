@@ -43,8 +43,27 @@ function eDrawPlatform(ctx, p, viewX, selected) {
   const sx = p.x - viewX;
   if (sx + p.w < -20 || sx > ECANVAS_W + 20) return;
   const c = E_COLORS.platform;
-  ctx.fillStyle = c.body; ctx.fillRect(sx, p.y, p.w, EPLAT_H);
-  ctx.fillStyle = c.top;  ctx.fillRect(sx, p.y, p.w, 3);
+  ctx.fillStyle = p.moving ? '#1a4a6a' : c.body;
+  ctx.fillRect(sx, p.y, p.w, EPLAT_H);
+  ctx.fillStyle = p.moving ? '#4ab8ff' : c.top;
+  ctx.fillRect(sx, p.y, p.w, 3);
+  if (p.moving) {
+    // Show movement range indicator
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = 'rgba(74,184,255,0.4)'; ctx.lineWidth = 1;
+    const rng = p.range || 80;
+    if ((p.axis || 'x') === 'x') {
+      ctx.strokeRect(sx - rng, p.y, p.w + rng * 2, EPLAT_H);
+    } else {
+      ctx.strokeRect(sx, p.y - rng, p.w, EPLAT_H + rng * 2);
+    }
+    ctx.setLineDash([]);
+    ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#4ab8ff';
+    ctx.fillText((p.axis || 'x') === 'x' ? '◀▶' : '▲▼', sx + p.w / 2, p.y - 3);
+    ctx.restore();
+  }
   if (selected) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
     ctx.strokeRect(sx - 1, p.y - 1, p.w + 2, EPLAT_H + 2);

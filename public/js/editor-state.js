@@ -27,7 +27,13 @@ function eScreenToWorld(sx, sy) {
 
 // ── Convert any level format → unified flat editor format ─────────────────────
 function eToFlat(ld) {
-  const platforms = (ld.platforms || []).map(p => ({ x: p.x, y: p.y, w: p.w }));
+  const platforms = (ld.platforms || []).map(p => ({
+    x: p.x, y: p.y, w: p.w,
+    moving: p.moving || false,
+    axis:   p.axis   || 'x',
+    range:  p.range  || 80,
+    speed:  p.speed  || 55,
+  }));
   const enemies   = [];
 
   for (const e of (ld.enemies || [])) {

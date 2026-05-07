@@ -37,13 +37,22 @@ function loadLevel(idx) {
   level      = idx + 1;
   Background.setTheme(bgTheme);
 
-  platforms = ld.platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: 14 }));
-  movingPlatforms = (ld.movingPlatforms || []).map(p => {
+  movingPlatforms = [];
+  platforms = ld.platforms.map(p => {
+    if (!p.moving) return { x: p.x, y: p.y, w: p.w, h: 14 };
     const mp = { x: p.x, y: p.y, w: p.w, h: 14,
       originX: p.x, originY: p.y,
       axis: p.axis || 'x', range: p.range || 80, speed: p.speed || 55,
       moveDir: 1, _deltaX: 0, _deltaY: 0, moving: true };
-    // Phase-offset: advance position before first frame
+    movingPlatforms.push(mp);
+    return mp;
+  });
+  // Also process dedicated movingPlatforms array (hardcoded in constants)
+  (ld.movingPlatforms || []).forEach(p => {
+    const mp = { x: p.x, y: p.y, w: p.w, h: 14,
+      originX: p.x, originY: p.y,
+      axis: p.axis || 'x', range: p.range || 80, speed: p.speed || 55,
+      moveDir: 1, _deltaX: 0, _deltaY: 0, moving: true };
     if (p.phase) {
       const halfPeriod = mp.range / mp.speed;
       const offset = (p.phase * halfPeriod * 2) % (halfPeriod * 2);
@@ -53,7 +62,7 @@ function loadLevel(idx) {
       else mp.y = mp.originY + Math.min(mp.range, dist) * sign;
     }
     platforms.push(mp);
-    return mp;
+    movingPlatforms.push(mp);
   });
   enemies         = [];
   coins           = [];
