@@ -1,5 +1,30 @@
 'use strict';
 
+// ── Moving platforms ───────────────────────────────────────────────────────────
+function updateMovingPlatforms(dt) {
+  for (const p of movingPlatforms) {
+    const prev = p.axis === 'x' ? p.x : p.y;
+    const move = p.moveDir * p.speed * dt;
+    if (p.axis === 'x') {
+      p.x += move;
+      p._deltaX = p.x - prev;
+      p._deltaY = 0;
+      if (Math.abs(p.x - p.originX) >= p.range) {
+        p.moveDir *= -1;
+        p.x = p.originX + p.moveDir * -p.range;
+      }
+    } else {
+      p.y += move;
+      p._deltaX = 0;
+      p._deltaY = p.y - prev;
+      if (Math.abs(p.y - p.originY) >= p.range) {
+        p.moveDir *= -1;
+        p.y = p.originY + p.moveDir * -p.range;
+      }
+    }
+  }
+}
+
 // ── Camera ─────────────────────────────────────────────────────────────────────
 function updateCamera(dt) {
   const target = player.x - C.W * 0.35;
@@ -17,6 +42,7 @@ function updateCamera(dt) {
 // ── Platform collision ─────────────────────────────────────────────────────────
 function platformCollision(entity) {
   let onPlat = false;
+  if (entity === player) player._standingPlat = null;
   for (const p of platforms) {
     const bot = entity.y + entity.h;
     if (entity.vy >= 0 &&
@@ -25,7 +51,7 @@ function platformCollision(entity) {
       entity.y = p.y - entity.h;
       entity.vy = 0;
       onPlat = true;
-      if (entity === player) { player.onGround = true; player.jumpsLeft = 2; }
+      if (entity === player) { player.onGround = true; player.jumpsLeft = 2; player._standingPlat = p; }
       break;
     }
   }
@@ -119,6 +145,7 @@ function updatePlayer(dt) {
         if (rectsOverlap(p.bounds(), e.bounds())) {
           p.dashHitSet.add(e);
           e.hp -= C.DASH_DAMAGE;
+          e.hitFlash = 0.14;
           e.vx = p.dashDir * 320;   // knock back
           e.vy = -220;              // knock up
           emitDashImpact(particles, e.x + e.w / 2, e.y + e.h / 2, p.dashDir);
@@ -225,8 +252,34 @@ function updatePlayer(dt) {
 
   if (p.y > C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
 
+  // Moving platform: carry player with platform
+  if (p._standingPlat && p._standingPlat.moving) {
+    p.x += p._standingPlat._deltaX;
+    p.y += p._standingPlat._deltaY;
+  }
+
+  const prevState = p.prevState;
   p.state = p.attacking ? 'attack' : p.crouching ? 'crouch' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
-  if (p.state !== p.prevState) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
+  if (p.state !== prevState) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
+
+  // Landing impact
+  if (p.state === 'idle' || p.state === 'run') {
+    if (prevState === 'jump' && p._prevVy > 220) {
+      emitLandingImpact(particles, p.x + p.w / 2, p.y + p.h, p._prevVy);
+      if (p._prevVy > 400) triggerShake(4, 0.12);
+    }
+  }
+  p._prevVy = p.vy;
+
+  // Footstep dust while running
+  if (p.state === 'run' && p.onGround) {
+    p._dustTimer = (p._dustTimer || 0) - dt;
+    if (p._dustTimer <= 0) {
+      emitDust(particles, p.x + p.w / 2, p.y + p.h);
+      p._dustTimer = 0.14;
+    }
+  } else { p._dustTimer = 0; }
+
   p.animTimer += dt;
   if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
 }
@@ -287,7 +340,16 @@ function triggerGemSpecial() {
 // ── Enemies ────────────────────────────────────────────────────────────────────
 function updateEnemies(dt) {
   for (const e of enemies) {
+    if (e.dying) {
+      e.dyingTimer -= dt;
+      e.vy += C.GRAVITY * dt;
+      e.x  += e.vx * dt;
+      e.y  += e.vy * dt;
+      e.dyingRot = (e.dyingRot || 0) + e.dyingRotSpd * dt;
+      continue;
+    }
     if (!e.alive) continue;
+    if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
     // Skip enemies far off-screen that can't possibly interact with the player.
     // Detection range is 230px so a 450px margin is safe. Always update alert grunts.
     const nearViewport = e.x + e.w > cam.x - 450 && e.x < cam.x + C.W + 450;
@@ -323,6 +385,7 @@ function updateEnemies(dt) {
           killEnemy(e, true);
         } else {
           e.hp--;
+          e.hitFlash = 0.12;
           emitHit(particles, e.x + e.w/2, e.y + e.h/2);
           if (e.hp <= 0) killEnemy(e);
           else if (e.type === 'grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
@@ -333,17 +396,29 @@ function updateEnemies(dt) {
     const dealsDmg = e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert');
     if (dealsDmg && wasOverlapping && player.invincible <= 0) damagePlayer();
   }
-  enemies = enemies.filter(e => e.alive);
+  enemies = enemies.filter(e => e.alive || (e.dying && e.dyingTimer > 0));
 }
 
 function killEnemy(e, stealth = false) {
-  e.alive = false; kills++;
+  e.alive   = false;
+  e.dying   = true;
+  e.dyingTimer  = 0.55;
+  e.vx      = (player ? player.facing * 160 : 0) + (Math.random() - 0.5) * 60;
+  e.vy      = -290 - Math.random() * 90;
+  e.dyingRot    = 0;
+  e.dyingRotSpd = (Math.random() > 0.5 ? 1 : -1) * (7 + Math.random() * 9);
+  kills++;
   combo = Math.min(combo + 1, C.MAX_COMBO);
   comboTimer = C.COMBO_TIMEOUT;
   const basePts = C.KILL_SCORE * combo;
   const pts     = stealth ? basePts + C.STEALTH_KILL_BONUS : basePts;
   score += pts;
   emitEnemyDeath(particles, e.x + e.w / 2, e.y + e.h / 2);
+  if (combo >= 4) {
+    // Extra burst at high combo
+    emitEnemyDeath(particles, e.x + e.w / 2, e.y + e.h / 2);
+    emitDashFire(particles, e.x + e.w / 2, e.y + e.h / 2, player ? player.facing : 1);
+  }
   floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 10, `+${pts}`, C.COL_GOLD, 1 + combo * 0.15));
   if (stealth) {
     floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 34, 'STEALTH KILL!', '#a0f0ff', 1.35));
@@ -370,6 +445,18 @@ function updateBoss(dt) {
     Audio.bossFight();
   }
   boss.update(dt, player, shurikens, playerShurikens);
+  if (boss.hitFlash > 0) boss.hitFlash = Math.max(0, boss.hitFlash - dt);
+
+  // Phase 2 transition announcement
+  if (boss.phase2 && !boss.phase2Announced) {
+    boss.phase2Announced = true;
+    screenFlash = Math.max(screenFlash, 0.7);
+    triggerShake(14, 0.5);
+    floatingTexts.push(new FloatingText(boss.x + boss.w / 2, boss.y - 40, 'FAS 2!!', '#ff2020', 2.2));
+    floatingTexts.push(new FloatingText(boss.x + boss.w / 2, boss.y - 70, '⚡ PASSA DIG!', '#ffaa00', 1.4));
+    emitEnemyDeath(particles, boss.x + boss.w / 2, boss.y + boss.h / 2);
+    emitEnemyDeath(particles, boss.x + boss.w / 2, boss.y + boss.h / 2);
+  }
 
   if (player.invincible <= 0 && rectsOverlap(player.bounds(), boss.bounds())) damagePlayer();
 
@@ -385,10 +472,11 @@ function updateBoss(dt) {
 
 function killBoss() {
   boss.alive = false; kills++;
+  slowMoTimer = C.SLOW_MO_DURATION;
   Audio.stopBoss();
   score += C.BOSS_KILL_SCORE + C.LEVEL_CLEAR_BONUS;
-  for (let i = 0; i < 3; i++)
-    emitEnemyDeath(particles, boss.x + boss.w/2 + (i-1)*24, boss.y + boss.h/2 - i*10);
+  for (let i = 0; i < 6; i++)
+    emitEnemyDeath(particles, boss.x + boss.w/2 + (i-2)*20, boss.y + boss.h/2 - i*8);
   triggerShake(22, 0.9);
   screenFlash = 1;
   Audio.defeat();
@@ -435,6 +523,7 @@ function updatePlayerShurikens(dt) {
       if (!e.alive || s.hitSet.has(e) || !s.alive) continue;
       if (rectsOverlap(s.bounds(), e.bounds())) {
         e.hp--;
+        e.hitFlash = 0.12;
         emitHit(particles, e.x + e.w/2, e.y + e.h/2);
         if (e.hp <= 0) {
           killEnemy(e);
@@ -451,9 +540,19 @@ function updatePlayerShurikens(dt) {
 
 // ── Coins ──────────────────────────────────────────────────────────────────────
 function updateCoins(dt) {
+  const MAGNET_RANGE = 130;
+  const mpx = player.x + player.w / 2, mpy = player.y + player.h / 2;
   for (const c of coins) {
     if (!c.alive) continue;
     c.update(dt);
+    // Magnetic attraction
+    const cdx = (c.x + c.w / 2) - mpx, cdy = (c.y + c.h / 2) - mpy;
+    const dist = Math.hypot(cdx, cdy);
+    if (dist < MAGNET_RANGE && dist > 1) {
+      const spd = 320 * (1 - dist / MAGNET_RANGE);
+      c.x -= (cdx / dist) * spd * dt;
+      c.y -= (cdy / dist) * spd * dt;
+    }
     if (rectsOverlap(player.bounds(), c.bounds())) {
       c.alive = false;
       score += C.COIN_VALUE;
@@ -544,6 +643,7 @@ function update(dt) {
   }
   if (gameState !== STATE.PLAYING) return;
 
+  updateMovingPlatforms(dt);
   updatePlayer(dt);
   _applyBossBarrier();
   updateEnemies(dt);

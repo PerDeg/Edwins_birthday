@@ -304,6 +304,9 @@ class Grunt {
     this.maxHp = C.ENEMY_HP_GRUNT;
     this.vy       = 0;
     this.onGround = false;
+    this.hitFlash = 0;
+    this.dying    = false;
+    this.dyingTimer = 0;
   }
   canSeePlayer(player) {
     if (player.hiding) return false;
@@ -432,6 +435,9 @@ class Archer {
     this.ammo     = C.ARCHER_AMMO;
     this.animFrame = 0;
     this.animTimer = 0;
+    this.hitFlash = 0;
+    this.dying    = false;
+    this.dyingTimer = 0;
   }
   update(dt, player, shurikens) {
     // Physics: same gravity system as ninja
@@ -796,6 +802,8 @@ class Boss {
     // Shield: cycles OFF→ON→OFF. Starts in OFF so fight opens with an attack window.
     this.shieldActive  = false;
     this.shieldTimer   = 0;     // position in the cycle
+    this.hitFlash = 0;
+    this.phase2Announced = false;
   }
   get phase2() { return this.hp <= Math.ceil(this.maxHp / 2); }
 
@@ -891,6 +899,7 @@ class Boss {
     if (this.invincible > 0) return false;
     this.hp--;
     this.invincible = 0.28;
+    this.hitFlash = 0.18;
     return true;
   }
 

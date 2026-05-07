@@ -70,6 +70,10 @@ const C = {
   DASH_DAMAGE:          2,    // enemy hp reduction per hit (double)
   DASH_TAP_WIN:        0.28,  // double-tap detection window (s)
 
+  // Slow-motion (boss kill)
+  SLOW_MO_DURATION:    1.4,   // seconds of slow-mo after boss kill
+  SLOW_MO_FACTOR:      0.12,  // time scale during slow-mo
+
   // Hiding mechanic
   HIDE_RANGE:          52,     // horizontal distance to interact with a hiding spot
 
@@ -137,6 +141,11 @@ const C = {
         { x: 3090, range: 180 },
       ],
       boss: { x: 3390, y: 308, hp: 8, type: 'samurai' },
+      movingPlatforms: [
+        { x: 545, y: 500, w: 85, axis: 'x', range: 90, speed: 55 },
+        { x: 2465, y: 498, w: 80, axis: 'x', range: 80, speed: 50, phase: 0.5 },
+        { x: 3120, y: 490, w: 80, axis: 'y', range: 70, speed: 48 },
+      ],
     },
 
     {
@@ -213,6 +222,12 @@ const C = {
         { x: 3870, range: 200 },
       ],
       boss: { x: 4220, y: 298, hp: 12, type: 'archer-boss' },
+      movingPlatforms: [
+        { x: 700,  y: 495, w: 85, axis: 'x', range: 95, speed: 60 },
+        { x: 2180, y: 490, w: 80, axis: 'y', range: 80, speed: 52, phase: 0.25 },
+        { x: 3640, y: 495, w: 80, axis: 'x', range: 85, speed: 58, phase: 0.5 },
+        { x: 4390, y: 490, w: 80, axis: 'y', range: 75, speed: 50 },
+      ],
     },
 
     {
@@ -305,6 +320,13 @@ const C = {
         { x: 4680, range: 180 },
       ],
       boss: { x: 5000, y: 293, hp: 16, type: 'demon' },
+      movingPlatforms: [
+        { x: 860,  y: 490, w: 85, axis: 'x', range: 90, speed: 65 },
+        { x: 2080, y: 490, w: 80, axis: 'y', range: 85, speed: 55, phase: 0.3 },
+        { x: 3480, y: 495, w: 80, axis: 'x', range: 95, speed: 62, phase: 0.6 },
+        { x: 4680, y: 490, w: 80, axis: 'y', range: 80, speed: 58, phase: 0.1 },
+        { x: 5100, y: 490, w: 80, axis: 'x', range: 70, speed: 70, phase: 0.8 },
+      ],
     },
   ],
 };

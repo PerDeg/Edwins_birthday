@@ -79,6 +79,7 @@ let particles     = [], floatingTexts = [], petals = [];
 let coins         = [], pickups = [], playerShurikens = [], boss = null;
 let hidingSpots   = [];
 let ladders       = [], spikes = [];
+let movingPlatforms = [];
 
 // ── Counters & flags ───────────────────────────────────────────────────────────
 let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
@@ -110,7 +111,14 @@ const _submitRankEl   = document.getElementById('submit-rank');
 const _rankNum        = document.getElementById('rank-num');
 const _menuOverlay    = document.getElementById('menu-overlay');
 
+const _touchControls = document.getElementById('touch-controls');
+function _setTouchControls(visible) {
+  if (!_touchControls) return;
+  _touchControls.classList.toggle('hidden', !visible);
+}
+
 function _showOverlay() {
+  _setTouchControls(false);
   if (!_submitOverlay) return;
   const isVictory = (gameState === STATE.VICTORY);
   _submitHeading.textContent = isVictory ? 'GRATTIS! 🥷' : 'GAME OVER';
@@ -130,6 +138,7 @@ function _hideOverlay() {
 
 function _showMenu() {
   gameState = STATE.MENU;
+  _setTouchControls(false);
   if (_menuOverlay) _menuOverlay.style.display = 'flex';
   fetchLeaderboard();
 }
@@ -140,6 +149,7 @@ function _hideMenu() {
 
 // ── Loop timestamp ─────────────────────────────────────────────────────────────
 let lastTime = 0;
+let slowMoTimer = 0;
 
 // ── Canvas UI click handler (in-game screens only) ────────────────────────────
 function handleClick() {
@@ -213,8 +223,10 @@ function _resetSubmitFlags() {
 // ── Main Game Loop ─────────────────────────────────────────────────────────────
 let _gOverShown = false, _victoryShown = false;
 function loop(now) {
-  const dt = lastTime === 0 ? 0 : Math.min((now - lastTime) / 1000, 0.05);
+  const rawDt = lastTime === 0 ? 0 : Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
+  if (slowMoTimer > 0) slowMoTimer = Math.max(0, slowMoTimer - rawDt);
+  const dt = rawDt * (slowMoTimer > 0 ? C.SLOW_MO_FACTOR : 1);
 
   const _t0 = performance.now();
   update(dt);

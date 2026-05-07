@@ -3,6 +3,7 @@
 // ── Level management ───────────────────────────────────────────────────────────
 
 function initGame() {
+  _setTouchControls(true);
   Audio.start();
   HUD.reset();
 
@@ -36,7 +37,24 @@ function loadLevel(idx) {
   level      = idx + 1;
   Background.setTheme(bgTheme);
 
-  platforms       = ld.platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: 14 }));
+  platforms = ld.platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: 14 }));
+  movingPlatforms = (ld.movingPlatforms || []).map(p => {
+    const mp = { x: p.x, y: p.y, w: p.w, h: 14,
+      originX: p.x, originY: p.y,
+      axis: p.axis || 'x', range: p.range || 80, speed: p.speed || 55,
+      moveDir: 1, _deltaX: 0, _deltaY: 0, moving: true };
+    // Phase-offset: advance position before first frame
+    if (p.phase) {
+      const halfPeriod = mp.range / mp.speed;
+      const offset = (p.phase * halfPeriod * 2) % (halfPeriod * 2);
+      const sign = offset < halfPeriod ? 1 : -1;
+      const dist = sign > 0 ? offset * mp.speed : (offset - halfPeriod) * mp.speed;
+      if (mp.axis === 'x') mp.x = mp.originX + Math.min(mp.range, dist) * sign;
+      else mp.y = mp.originY + Math.min(mp.range, dist) * sign;
+    }
+    platforms.push(mp);
+    return mp;
+  });
   enemies         = [];
   coins           = [];
   hidingSpots = (ld.hidingSpots || []).map(h => new HidingSpot(h.type, h.x, h.y, h.rotation || 0));

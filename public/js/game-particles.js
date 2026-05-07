@@ -162,3 +162,26 @@ function emitHit(particles, x, y) {
     particles.push(new Particle(x, y, Math.cos(a)*80, Math.sin(a)*80, '#ff4444', 3, 0.35, 0));
   }
 }
+
+function emitDust(particles, x, y) {
+  const cols = ['#c8b89a','#b0a080','#d4c8a8'];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI + (Math.random() - 0.5) * 1.4;
+    const spd = 20 + Math.random() * 50;
+    particles.push(new Particle(x + (Math.random()-0.5)*14, y,
+      Math.cos(a)*spd, Math.sin(a)*spd - 10,
+      cols[i % cols.length], 2 + Math.random()*2.5, 0.35, -60));
+  }
+}
+
+function emitLandingImpact(particles, x, y, strength) {
+  const cols = ['#c8b89a','#b0a080','#ffffff','#d4c8a8'];
+  const count = Math.floor(8 + strength * 0.04);
+  for (let i = 0; i < count; i++) {
+    const a = Math.PI + (Math.random() - 0.5) * 2.2;
+    const spd = 40 + Math.random() * (60 + strength * 0.3);
+    particles.push(new Particle(x + (Math.random()-0.5)*22, y,
+      Math.cos(a)*spd, Math.sin(a)*spd - 18,
+      cols[i % cols.length], 2.5 + Math.random()*3, 0.42, -80));
+  }
+}

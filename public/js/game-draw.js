@@ -192,6 +192,18 @@ function draw(dt) {
   for (const p of platforms) {
     if (p.x + p.w < cam.x - 20 || p.x > cam.x + C.W + 20) continue;
     drawPlatform(ctx, p);
+    // Moving platform: draw pulsing arrows indicating direction
+    if (p.moving) {
+      const pulse = 0.5 + Math.sin(Date.now() * 0.005) * 0.5;
+      ctx.save();
+      ctx.globalAlpha = 0.55 * pulse;
+      ctx.fillStyle = '#a0e8ff';
+      ctx.font = '11px system-ui';
+      ctx.textAlign = 'center';
+      const sym = p.axis === 'x' ? '◀ ▶' : '▲ ▼';
+      ctx.fillText(sym, p.x + p.w / 2, p.y - 3);
+      ctx.restore();
+    }
   }
 
   for (const l of ladders) {
@@ -222,10 +234,30 @@ function draw(dt) {
   }
 
   for (const e of enemies) {
-    if (!e.alive || e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
+    if (e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
+    if (e.dying) {
+      const alpha = Math.max(0, e.dyingTimer / 0.55);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
+      ctx.rotate(e.dyingRot || 0);
+      ctx.translate(-e.w / 2, -e.h / 2);
+      if (e.type === 'archer') drawArcher(ctx, { ...e, x: 0, y: 0, hitFlash: 0 });
+      else drawGrunt(ctx, { ...e, x: 0, y: 0, hitFlash: 0 });
+      ctx.restore();
+      continue;
+    }
+    if (!e.alive) continue;
     if (e.type === 'grunt') drawDetectionCone(ctx, e);
     e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
     drawEnemyHpBar(ctx, e);
+    if (e.hitFlash > 0) {
+      ctx.save();
+      ctx.globalAlpha = (e.hitFlash / 0.14) * 0.65;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(e.x - 2, e.y - 2, e.w + 4, e.h + 4);
+      ctx.restore();
+    }
   }
 
   for (const s of shurikens) {
@@ -237,7 +269,16 @@ function draw(dt) {
     s.draw(ctx);
   }
 
-  if (boss && boss.alive) drawBoss(ctx, boss);
+  if (boss && boss.alive) {
+    drawBoss(ctx, boss);
+    if (boss.hitFlash > 0) {
+      ctx.save();
+      ctx.globalAlpha = (boss.hitFlash / 0.18) * 0.55;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(boss.x - 4, boss.y - 4, boss.w + 8, boss.h + 8);
+      ctx.restore();
+    }
+  }
   if (player) {
     if (gemPower && !player.hiding) {
       const pulse = 0.55 + Math.sin(Date.now() * 0.006) * 0.45;
@@ -298,6 +339,28 @@ function draw(dt) {
     } else {
       drawNinjaPlayer(ctx, player);
     }
+
+    // Dash cooldown arc — shown while recharging (not during dash itself)
+    if (!player.dashing && player.dashCooldown > 0) {
+      const frac = 1 - player.dashCooldown / C.DASH_COOLDOWN;
+      const cx = player.x + player.w / 2;
+      const cy = player.y + player.h * 0.85;
+      const r = 18;
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = 'rgba(80,80,80,0.5)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2, false);
+      ctx.stroke();
+      ctx.strokeStyle = frac > 0.85 ? '#88ffcc' : '#4fc3f7';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Draw the active hiding spot on top of the player so they appear inside it
     if (player.hidingAt) drawHidingSpot(ctx, player.hidingAt);
   }
@@ -323,6 +386,16 @@ function draw(dt) {
 
   ctx.restore();
 
+  // Low HP vignette — pulsing red edges below 30 HP
+  if (player && playerHp > 0 && playerHp < 30 && gameState === STATE.PLAYING) {
+    const t     = (30 - playerHp) / 30;
+    const pulse = 0.20 + Math.sin(Date.now() * 0.007) * 0.18;
+    const g = ctx.createRadialGradient(C.W/2, C.H/2, C.H * 0.18, C.W/2, C.H/2, C.H * 0.88);
+    g.addColorStop(0, 'rgba(180,0,0,0)');
+    g.addColorStop(1, `rgba(200,0,0,${(t * pulse).toFixed(3)})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, C.W, C.H);
+  }
 
   if (gameState === STATE.PLAYING) {
     HUD.draw(ctx, { playerHp, score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth, throwAmmo });
