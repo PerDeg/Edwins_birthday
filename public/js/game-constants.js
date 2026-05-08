@@ -24,7 +24,7 @@ const C = {
   SHURIKEN_SPEED:  420,
   KNIFE_SPEED:     360,
   THROW_COOLDOWN:  0.20,   // fast re-throw
-  THROW_RANGE:     300,    // max travel distance before disappearing
+  THROW_RANGE:     450,    // max travel distance before disappearing
   THROW_AMMO:       10,    // ammo per pickup
 
   COIN_VALUE:          5,
