@@ -266,6 +266,15 @@ function draw(dt) {
     }
     if (!e.alive) continue;
     if (e.type === 'grunt') drawDetectionCone(ctx, e);
+    else if (e.type === 'archer' && e.lostPlayerTimer > 0) {
+      const alpha = Math.min(1, e.lostPlayerTimer);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 18px system-ui'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffdd00';
+      ctx.fillText('?', e.x + e.w / 2, e.y - 14);
+      ctx.restore();
+    }
     if (e.slipping) {
       // Spin the grunt sideways while sliding
       ctx.save();
@@ -329,6 +338,44 @@ function draw(dt) {
     }
   }
   if (player) {
+    // Ambush arc — depleting ring drawn around the hiding spot
+    if (player.hidingAt && player.ambushWindow > 0) {
+      const frac  = player.ambushWindow / C.AMBUSH_WINDOW;
+      const s     = player.hidingAt;
+      const acx   = s.x + s.w / 2;
+      const acy   = s.y + s.h / 2;
+      const r     = Math.max(s.w, s.h) * 0.95 + 9;
+      const col   = frac > 0.45 ? '#ffe040' : '#ff6020';
+      const pulse = 0.72 + Math.sin(Date.now() * 0.012) * 0.28;
+      ctx.save();
+      ctx.globalAlpha = pulse * 0.92;
+      ctx.strokeStyle = col; ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(acx, acy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false);
+      ctx.stroke();
+      const tipA = -Math.PI / 2 + Math.PI * 2 * frac;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(acx + Math.cos(tipA) * r, acy + Math.sin(tipA) * r, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Ambush-ready glow — player flashes gold during the exit grace window
+    if (player.ambushReady > 0 && !player.hiding) {
+      const frac  = player.ambushReady / C.AMBUSH_GRACE;
+      const pulse = 0.55 + Math.sin(Date.now() * 0.028) * 0.45;
+      ctx.save();
+      ctx.globalAlpha = frac * pulse * 0.75;
+      ctx.fillStyle = '#ffe040';
+      ctx.beginPath();
+      ctx.ellipse(player.x + player.w / 2, player.y + player.h / 2,
+        player.w * 1.5, player.h * 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
     if (gemPower && !player.hiding) {
       const pulse = 0.55 + Math.sin(Date.now() * 0.006) * 0.45;
       ctx.save();

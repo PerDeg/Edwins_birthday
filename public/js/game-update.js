@@ -1,5 +1,13 @@
 'use strict';
 
+// ── Platform line-of-sight blocker for projectiles ────────────────────────────
+function _blockedByPlatform(x, y) {
+  for (const p of platforms) {
+    if (x > p.x + 2 && x < p.x + p.w - 2 && y > p.y && y < p.y + p.h) return true;
+  }
+  return false;
+}
+
 // ── Moving platforms ───────────────────────────────────────────────────────────
 function updateMovingPlatforms(dt) {
   for (const p of movingPlatforms) {
@@ -84,13 +92,23 @@ function updatePlayer(dt) {
       if (nearSpot) {
         p.hiding = true; p.hidingAt = nearSpot;
         p.x = nearSpot.x + (nearSpot.w - p.w) / 2;
+        // Start ambush window if an enemy is nearby
+        const sx = nearSpot.x + nearSpot.w / 2, sy = nearSpot.y + nearSpot.h / 2;
+        const nearEnemy = enemies.some(e =>
+          e.alive && !e.dying &&
+          Math.abs((e.x + e.w / 2) - sx) < 200 &&
+          Math.abs((e.y + e.h / 2) - sy) < 110
+        );
+        p.ambushWindow = nearEnemy ? C.AMBUSH_WINDOW : 0;
       }
     }
   } else if (left || right || jumpPressed || attackPressed || downJust) {
-    p.hiding = false; p.hidingAt = null;
+    if (p.ambushWindow > 0) p.ambushReady = C.AMBUSH_GRACE;
+    p.hiding = false; p.hidingAt = null; p.ambushWindow = 0;
   }
 
   if (p.hiding) {
+    if (p.ambushWindow > 0) p.ambushWindow -= dt;
     p.vx = 0;
     p.vy += C.GRAVITY * dt;
     p.y  += p.vy * dt;
@@ -236,6 +254,7 @@ function updatePlayer(dt) {
   if (p.attackTimer > 0)    { p.attackTimer    -= dt; if (p.attackTimer  <= 0) p.attacking = false; }
   if (p.attackCooldown > 0)   p.attackCooldown -= dt;
   if (p.invincible > 0)       p.invincible     -= dt;
+  if (p.ambushReady > 0)      p.ambushReady    -= dt;
   if (throwCooldown > 0)      throwCooldown    -= dt;
 
   // Ladder climbing overrides normal gravity
@@ -463,7 +482,12 @@ function updateEnemies(dt) {
     if (player.attackActive) {
       const hb = player.attackHitbox();
       if (rectsOverlap(hb, e.bounds())) {
-        if (e.type === 'grunt' && e.aiState !== 'alert' && e.isBehind(player)) {
+        if (player.ambushReady > 0) {
+          // Timed ambush burst — guaranteed stealth kill
+          player.ambushReady = 0;
+          killEnemy(e, true);
+          floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 40, 'MÖRDARHOPP!', '#ffe040', 1.9));
+        } else if (e.type === 'grunt' && e.aiState !== 'alert' && e.isBehind(player)) {
           killEnemy(e, true);
         } else {
           e.hp--;
@@ -579,8 +603,16 @@ function killBoss() {
 function updateShurikens(dt) {
   for (const s of shurikens) {
     s.update(dt, cam.x);
-    if (s.alive && !player.hiding && player.invincible <= 0 && rectsOverlap(player.bounds(), s.bounds())) {
-      s.alive = false; damagePlayer();
+    if (!s.alive) continue;
+    if (_blockedByPlatform(s.x, s.y)) {
+      s.alive = false;
+      emitHit(particles, s.x, s.y);
+      continue;
+    }
+    if (!player.hiding && player.invincible <= 0 && rectsOverlap(player.bounds(), s.bounds())) {
+      s.alive = false;
+      emitBloodSplat(particles, player.x + player.w / 2, player.y + player.h * 0.4, s.vx > 0 ? 1 : -1);
+      damagePlayer();
     }
   }
   shurikens = shurikens.filter(s => s.alive);
@@ -591,6 +623,12 @@ function updatePlayerShurikens(dt) {
   for (const s of playerShurikens) {
     s.update(dt);
     if (!s.alive) continue;
+
+    if (_blockedByPlatform(s.x, s.y)) {
+      s.alive = false;
+      emitHit(particles, s.x, s.y);
+      continue;
+    }
 
     if (boss && boss.alive && !s.hitSet.has(boss) && rectsOverlap(s.bounds(), boss.bounds())) {
       if (boss.shieldActive) {
@@ -615,7 +653,7 @@ function updatePlayerShurikens(dt) {
       if (rectsOverlap(s.bounds(), e.bounds())) {
         e.hp--;
         e.hitFlash = 0.12;
-        emitHit(particles, e.x + e.w/2, e.y + e.h/2);
+        emitBloodSplat(particles, e.x + e.w / 2, e.y + e.h * 0.4, s.vx > 0 ? 1 : -1);
         if (e.hp <= 0) {
           killEnemy(e);
         } else if (e.type === 'grunt') {

@@ -185,3 +185,21 @@ function emitLandingImpact(particles, x, y, strength) {
       cols[i % cols.length], 2.5 + Math.random()*3, 0.42, -80));
   }
 }
+
+function emitBloodSplat(particles, x, y, dir) {
+  const cols = ['#cc0000','#aa0000','#dd2020','#880000','#ff2020'];
+  for (let i = 0; i < 18; i++) {
+    const a = Math.atan2((Math.random() - 0.5) * 1.8, dir * (0.3 + Math.random() * 0.8));
+    const spd = 45 + Math.random() * 140;
+    particles.push(new Particle(x, y,
+      Math.cos(a) * spd, Math.sin(a) * spd - 45,
+      cols[i % cols.length], 2.5 + Math.random() * 3.5, 0.52, 300));
+  }
+  // Small drip-drops that fall straight down
+  for (let i = 0; i < 5; i++) {
+    particles.push(new Particle(
+      x + (Math.random() - 0.5) * 14, y + Math.random() * 6,
+      (Math.random() - 0.5) * 28, -15 - Math.random() * 55,
+      '#cc0000', 2, 0.65, 400));
+  }
+}

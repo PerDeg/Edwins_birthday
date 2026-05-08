@@ -77,6 +77,10 @@ const C = {
   // Hiding mechanic
   HIDE_RANGE:          52,     // horizontal distance to interact with a hiding spot
 
+  // Timed ambush from hiding
+  AMBUSH_WINDOW:       1.8,   // seconds arc is shown while hiding near an enemy
+  AMBUSH_GRACE:        0.45,  // seconds after exiting hiding to land the ambush attack
+
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
     {

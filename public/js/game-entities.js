@@ -262,6 +262,8 @@ class Player {
     this.prevState = 'idle';
     this.lives = C.LIVES;
     this.alive = true;
+    this.ambushWindow = 0;   // depleting arc timer while hiding near enemy
+    this.ambushReady  = 0;   // grace period after exiting hiding
   }
   get attackActive() {
     return this.attacking && this.attackTimer > C.ATTACK_DURATION * 0.4;
@@ -314,11 +316,15 @@ class Grunt {
   canSeePlayer(player) {
     if (player.hiding) return false;
     const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
+    const dy = (player.y + player.h / 2) - (this.y + this.h / 2);
     if (dx * this.facing < 0) return false;          // player is behind guard
     if (Math.abs(dx) > C.DETECTION_RANGE) return false;
-    // Platform level check only while patrolling — alerted grunts track across levels
     if (this.aiState !== 'alert') {
+      // Must be on the same platform level while patrolling
       if (Math.abs((player.y + player.h) - this.platform.y) > 20) return false;
+    } else {
+      // Alert grunts track across levels but still have a vertical limit
+      if (Math.abs(dy) > C.DETECTION_HEIGHT) return false;
     }
     return true;
   }
@@ -458,9 +464,10 @@ class Archer {
     this.hitFlash = 0;
     this.dying    = false;
     this.dyingTimer = 0;
+    this.lostPlayerTimer = 0;  // shows '?' after losing sight of player
   }
   update(dt, player, shurikens) {
-    // Physics: same gravity system as ninja
+    // Physics
     this.onGround = false;
     this.vy += C.GRAVITY * dt;
     this.x  += this.vx * dt;
@@ -477,7 +484,12 @@ class Archer {
     this.animTimer += dt;
     if (this.animTimer > 0.14) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
 
-    if (!player.hiding) {
+    // Only track and shoot when player is visible (not hidden, within vertical range)
+    const dy = Math.abs((player.y + player.h / 2) - (this.y + this.h / 2));
+    const canSee = !player.hiding && dy < C.DETECTION_HEIGHT;
+
+    if (canSee) {
+      this.lostPlayerTimer = 1.8;
       this.facing = player.x > this.x ? 1 : -1;
       this.shootTimer -= dt;
       if (this.shootTimer <= 0 && this.ammo > 0) {
@@ -488,8 +500,11 @@ class Archer {
           player.x + player.w / 2, player.y + player.h * 0.4
         ));
       }
-    } else if (this.shootTimer < 0) {
-      this.shootTimer = 0;  // freeze shoot timer while player is hidden
+    } else {
+      // Player is hidden or out of vertical range — patrol and look around
+      if (this.lostPlayerTimer > 0) this.lostPlayerTimer -= dt;
+      if (this.vx !== 0) this.facing = this.vx > 0 ? 1 : -1;
+      if (this.shootTimer < 0) this.shootTimer = 0;
     }
   }
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
