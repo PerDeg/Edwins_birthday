@@ -279,6 +279,7 @@ function updatePlayer(dt) {
       p.groundPound = false;
       triggerShake(9, 0.28);
       emitLandingImpact(particles, p.x + p.w / 2, p.y + p.h, 700);
+      groundPoundWave = { x: p.x + p.w / 2, y: p.y + p.h, r: 8, maxR: GP_RANGE + 30, timer: 0.38 };
       Audio.hit();
       const GP_RANGE = 80;
       const pcx = p.x + p.w / 2;
@@ -333,6 +334,17 @@ function damagePlayer() {
 }
 
 function throwWeapon() {
+  if (playerWeapon === 'banana') {
+    // Drop peel at player's feet
+    bananaPeels.push(new BananaPeel(player.x + player.w / 2, player.y + player.h));
+    throwAmmo--;
+    if (throwAmmo <= 0) { throwAmmo = 0; playerWeapon = 'sword'; }
+    ammoDisplayTimer = 1.8;
+    floatingTexts.push(new FloatingText(player.x + player.w / 2, player.y - 8, 'HALKA NU!', '#f5d53a', 1.0));
+    Audio.slash();
+    return;
+  }
+
   const cx = player.x + player.w / 2 + player.facing * 18;
   const cy = player.y + player.h * 0.3;
   if (playerWeapon === 'triple') {
@@ -465,7 +477,7 @@ function killEnemy(e, stealth = false) {
   e.vy      = -290 - Math.random() * 90;
   e.dyingRot    = 0;
   e.dyingRotSpd = (Math.random() > 0.5 ? 1 : -1) * (7 + Math.random() * 9);
-  kills++;
+  kills++; levelKills++;
   combo = Math.min(combo + 1, C.MAX_COMBO);
   comboTimer = C.COMBO_TIMEOUT;
   const basePts = C.KILL_SCORE * combo;
@@ -538,6 +550,15 @@ function killBoss() {
   triggerShake(22, 0.9);
   screenFlash = 1;
   Audio.defeat();
+
+  // Compute level rank
+  const killFrac = levelTotalEnemies > 0 ? levelKills / levelTotalEnemies : 1;
+  if      (killFrac >= 0.90 && playerHp >= 70 && levelTimer < 90)  lastLevelRank = 'S';
+  else if (killFrac >= 0.70 && playerHp >= 40 && levelTimer < 200) lastLevelRank = 'A';
+  else if (killFrac >= 0.45 && playerHp >= 15)                     lastLevelRank = 'B';
+  else if (playerHp >= 5)                                           lastLevelRank = 'C';
+  else                                                              lastLevelRank = 'D';
+
   levelCompleteTimer = 3.5;
   gameState = STATE.LEVEL_COMPLETE;
 }
@@ -643,6 +664,13 @@ function updatePickups(dt) {
           floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 32, 'TRYCK Z FÖR ATTACK!', 'rgba(160,240,255,0.85)', 0.85));
           Audio.levelUp();
         }
+      } else if (p.type === 'banana') {
+        playerWeapon = 'banana';
+        throwAmmo = C.BANANA_AMMO;
+        ammoDisplayTimer = 1.8;
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, 'BANANSKALEN!', '#f5d53a', 1.4));
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 32, `TRYCK X  ×${C.BANANA_AMMO}`, 'rgba(255,255,255,0.75)', 0.80));
+        Audio.djump();
       } else {
         playerWeapon = p.type;
         throwAmmo = C.THROW_AMMO;
@@ -652,6 +680,33 @@ function updatePickups(dt) {
       }
     }
   }
+}
+
+// ── Banana Peels ───────────────────────────────────────────────────────────────
+function updateBananaPeels(dt) {
+  for (const bp of bananaPeels) {
+    if (!bp.alive) continue;
+    bp.update(dt);
+    for (const e of enemies) {
+      if (!e.alive || e.slipping || e.dying) continue;
+      if (rectsOverlap(bp.bounds(), e.bounds())) {
+        bp.alive = false;
+        e.slipping  = true;
+        e.slipTimer = C.BANANA_STUN_TIME;
+        e.slipRot   = 0;
+        // Slide in the direction the grunt was walking
+        e.vx = (e.facing > 0 ? 1 : -1) * 200;
+        e.vy = -80;
+        e.aiState = 'patrol'; e.detectTimer = 0; e.lostTimer = 0;
+        floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 24, 'HALKAN!!', '#f5d53a', 1.7));
+        emitDust(particles, e.x + e.w / 2, e.y + e.h);
+        triggerShake(5, 0.18);
+        Audio.defeat();
+        break;
+      }
+    }
+  }
+  bananaPeels = bananaPeels.filter(bp => bp.alive);
 }
 
 // ── Spikes ─────────────────────────────────────────────────────────────────────
@@ -701,6 +756,7 @@ function update(dt) {
   }
   if (gameState !== STATE.PLAYING) return;
 
+  levelTimer += dt;
   updateMovingPlatforms(dt);
   updatePlayer(dt);
   _applyBossBarrier();
@@ -709,6 +765,7 @@ function update(dt) {
   updatePlayerShurikens(dt);
   updateBoss(dt);
   updatePickups(dt);
+  updateBananaPeels(dt);
   updateSpikes();
   updateCamera(dt);
   updateCombo(dt);
@@ -717,6 +774,11 @@ function update(dt) {
     gemWave.timer -= dt;
     gemWave.r = gemWave.maxR * (1 - gemWave.timer / 0.55);
     if (gemWave.timer <= 0) gemWave = null;
+  }
+  if (groundPoundWave) {
+    groundPoundWave.timer -= dt;
+    groundPoundWave.r = groundPoundWave.maxR * (1 - groundPoundWave.timer / 0.38);
+    if (groundPoundWave.timer <= 0) groundPoundWave = null;
   }
   if (ammoDisplayTimer > 0) ammoDisplayTimer = Math.max(0, ammoDisplayTimer - dt);
 

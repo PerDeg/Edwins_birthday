@@ -100,12 +100,29 @@ function drawHidingSpot(ctx, spot) {
   else drawShadowPool(ctx, spot.x, spot.y, spot.w, spot.h);
 }
 
-// ── Enemy detection indicator (no visible cone box) ──────────────────────────
+// ── Enemy detection indicator ─────────────────────────────────────────────────
 function drawDetectionCone(ctx, e) {
-  if (e.aiState === 'patrol') return;
-  const cx  = e.x + e.w / 2;
-  const pct = e.aiState === 'suspect' ? e.detectTimer / C.DETECTION_TIME : 1;
+  const cx = e.x + e.w / 2;
 
+  if (e.aiState === 'patrol') {
+    // Show Zzz when grunt is standing still at a platform edge
+    if (e.patrolWait > 1.0) {
+      const t = Date.now() * 0.0028;
+      const alpha = Math.min(0.9, (e.patrolWait - 1.0) * 1.2);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#aaaaee';
+      ctx.font = 'bold 11px system-ui';
+      ctx.fillText('z', cx + 7,  e.y - 10 + Math.sin(t) * 1.5);
+      ctx.font = 'bold 15px system-ui';
+      ctx.fillText('Z', cx + 15, e.y - 21 + Math.sin(t + 1.1) * 1.5);
+      ctx.restore();
+    }
+    return;
+  }
+
+  const pct = e.aiState === 'suspect' ? e.detectTimer / C.DETECTION_TIME : 1;
   const label = e.aiState === 'alert' ? '!' : '?';
   const col   = e.aiState === 'alert' ? '#ff4040' : '#ffdd00';
   ctx.save();
@@ -233,6 +250,13 @@ function draw(dt) {
     p.draw(ctx);
   }
 
+  if (typeof bananaPeels !== 'undefined') {
+    for (const bp of bananaPeels) {
+      if (!bp.alive || bp.x + bp.w < cam.x - 20 || bp.x > cam.x + C.W + 20) continue;
+      bp.draw(ctx);
+    }
+  }
+
   for (const e of enemies) {
     if (e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
     if (e.dying) {
@@ -249,7 +273,16 @@ function draw(dt) {
     }
     if (!e.alive) continue;
     if (e.type === 'grunt') drawDetectionCone(ctx, e);
-    e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
+    if (e.slipping) {
+      // Spin the grunt sideways while sliding
+      ctx.save();
+      ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
+      ctx.rotate(e.slipRot);
+      drawGrunt(ctx, { ...e, x: -e.w / 2, y: -e.h / 2 });
+      ctx.restore();
+    } else {
+      e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
+    }
     drawEnemyHpBar(ctx, e);
     if (e.hitFlash > 0) {
       ctx.save();
@@ -386,6 +419,25 @@ function draw(dt) {
 
     // Draw the active hiding spot on top of the player so they appear inside it
     if (player.hidingAt) drawHidingSpot(ctx, player.hidingAt);
+  }
+
+  // Ground pound shockwave ring
+  if (typeof groundPoundWave !== 'undefined' && groundPoundWave) {
+    const frac = groundPoundWave.timer / 0.38;
+    ctx.save();
+    ctx.globalAlpha = frac * 0.72;
+    ctx.strokeStyle = '#ddbb44';
+    ctx.lineWidth = 4 + (1 - frac) * 7;
+    ctx.beginPath();
+    ctx.ellipse(groundPoundWave.x, groundPoundWave.y, groundPoundWave.r, groundPoundWave.r * 0.28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = frac * 0.25;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(groundPoundWave.x, groundPoundWave.y, groundPoundWave.r * 0.65, groundPoundWave.r * 0.18, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Gem shockwave ring

@@ -84,7 +84,7 @@ let movingPlatforms = [];
 // ── Counters & flags ───────────────────────────────────────────────────────────
 let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
 let screenFlash      = 0;
-let playerWeapon     = 'sword';   // 'sword'|'shuriken'|'triple'|'knife'
+let playerWeapon     = 'sword';   // 'sword'|'shuriken'|'triple'|'knife'|'banana'
 let throwCooldown    = 0;
 let throwAmmo        = 0;
 let playerHp         = C.PLAYER_HP;
@@ -95,6 +95,16 @@ let currentLevelIdx  = 0;
 let bgTheme          = 0;
 let levelWidth       = C.LEVEL_DATA[0].width;
 let levelCompleteTimer = 0;
+
+// ── Level stats (for rank) ─────────────────────────────────────────────────────
+let levelTimer        = 0;   // seconds elapsed in current level
+let levelKills        = 0;   // enemy kills in current level (excluding boss)
+let levelTotalEnemies = 0;   // total enemies spawned this level
+let lastLevelRank     = '';  // 'S'|'A'|'B'|'C'|'D'
+
+// ── Banana peels & ground pound wave ──────────────────────────────────────────
+let bananaPeels    = [];
+let groundPoundWave = null;
 
 // ── Camera ─────────────────────────────────────────────────────────────────────
 const cam = { x: 0, shake: 0, shakeDur: 0 };

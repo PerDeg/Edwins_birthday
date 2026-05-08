@@ -77,6 +77,10 @@ const C = {
   // Hiding mechanic
   HIDE_RANGE:          52,     // horizontal distance to interact with a hiding spot
 
+  // Banana peel
+  BANANA_STUN_TIME:    2.0,   // seconds enemy slides after stepping on peel
+  BANANA_AMMO:           3,   // peels per banana pickup
+
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
     {
@@ -128,6 +132,7 @@ const C = {
         { type: 'shuriken', x: 1090, y: 354 },
         { type: 'heart',    x: 1920, y: 260 },
         { type: 'triple',   x: 2615, y: 254 },
+        { type: 'banana',   x:  200, y: 354 },
       ],
       groundEnemies: [
         { x: 310,  range: 180 },
@@ -208,6 +213,7 @@ const C = {
         { type: 'knife',    x: 2040, y: 368 },
         { type: 'heart',    x: 2700, y: 258 },
         { type: 'triple',   x: 3660, y: 266 },
+        { type: 'banana',   x: 1190, y: 358 },
       ],
       groundEnemies: [
         { x: 290,  range: 180 },
@@ -304,6 +310,8 @@ const C = {
         { type: 'heart',    x: 2360, y: 258 },
         { type: 'triple',   x: 2585, y: 350 },
         { type: 'knife',    x: 3925, y: 338 },
+        { type: 'banana',   x: 1745, y: 349 },
+        { type: 'banana',   x: 3690, y: 254 },
       ],
       groundEnemies: [
         { x: 260,  range: 180 },

@@ -24,6 +24,11 @@ function initGame() {
   throwAmmo        = 0;
   playerHp         = C.PLAYER_HP;
   ammoDisplayTimer = 0;
+  levelTimer       = 0;
+  levelKills       = 0;
+  lastLevelRank    = '';
+  bananaPeels      = [];
+  groundPoundWave  = null;
 
   loadLevel(0);
   gameState = STATE.PLAYING;
@@ -131,6 +136,12 @@ function loadLevel(idx) {
   // Find the platform containing the boss x, fallback to last platform
   const bossPlat = platforms.find(p => bd.x >= p.x && bd.x <= p.x + p.w) || platforms[platforms.length - 1];
   boss = new Boss(bd.x, bd.y, bossPlat, bd.hp, bd.type);
+
+  levelTotalEnemies = enemies.length;  // track spawned count for rank
+  levelTimer  = 0;
+  levelKills  = 0;
+  bananaPeels = [];
+  groundPoundWave = null;
 
   cam.x = 0; cam.shake = 0; cam.shakeDur = 0;
   if (player) {

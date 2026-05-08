@@ -100,15 +100,45 @@ const UI = (() => {
 
     ctx.shadowColor = C.COL_GOLD; ctx.shadowBlur = 20;
     ctx.font = 'bold 52px system-ui'; ctx.fillStyle = C.COL_GOLD;
-    ctx.fillText('NIVÅ KLAR!', C.W/2, C.H/2 - 70);
+    ctx.fillText('NIVÅ KLAR!', C.W/2, C.H/2 - 80);
     ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
     ctx.font = 'bold 26px system-ui'; ctx.fillStyle = '#fff';
-    ctx.fillText(levelName, C.W/2, C.H/2 - 24);
+    ctx.fillText(levelName, C.W/2, C.H/2 - 36);
+
+    // ── Rank badge ────────────────────────────────────────────────────────
+    const rank = (typeof lastLevelRank !== 'undefined' && lastLevelRank) ? lastLevelRank : '';
+    if (rank) {
+      const rankColors = { S: '#ffd700', A: '#c8f060', B: '#88ccff', C: '#d0d0d0', D: '#888888' };
+      const rCol = rankColors[rank] || '#aaa';
+      ctx.save();
+      ctx.shadowColor = rCol;
+      ctx.shadowBlur  = 22 + Math.sin(lcAnim * 3) * 8;
+      ctx.font = 'bold 68px system-ui'; ctx.fillStyle = rCol;
+      ctx.fillText(rank, C.W / 2 - 110, C.H / 2 + 28);
+      ctx.shadowBlur = 0;
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = 'rgba(200,168,60,0.65)';
+      ctx.fillText('RANK', C.W / 2 - 110, C.H / 2 + 42);
+      ctx.restore();
+    }
+
+    // ── Level time ────────────────────────────────────────────────────────
+    if (typeof levelTimer !== 'undefined' && levelTimer > 0) {
+      const secs = Math.floor(levelTimer);
+      const timeStr = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+      ctx.save();
+      ctx.font = '22px system-ui'; ctx.fillStyle = C.COL_GOLD;
+      ctx.textAlign = 'center';
+      ctx.fillText(timeStr, C.W / 2 + 90, C.H / 2 + 10);
+      ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.65)';
+      ctx.fillText('TID', C.W / 2 + 90, C.H / 2 + 26);
+      ctx.restore();
+    }
 
     if (!isLast) {
       ctx.font = '18px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.75)';
-      ctx.fillText('Klicka eller tryck för att fortsätta →', C.W/2, C.H/2 + 20);
+      ctx.fillText('Klicka eller tryck för att fortsätta →', C.W/2, C.H/2 + 76);
     }
 
     // Sparkling stars
@@ -116,7 +146,7 @@ const UI = (() => {
     for (let i = 0; i < 5; i++) {
       const a = (i/5)*Math.PI*2 + lcAnim;
       const r = 120 + Math.sin(lcAnim*2 + i)*20;
-      const sx = C.W/2 + Math.cos(a)*r, sy = C.H/2 - 24 + Math.sin(a)*r*0.4;
+      const sx = C.W/2 + Math.cos(a)*r, sy = C.H/2 - 36 + Math.sin(a)*r*0.4;
       ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI*2); ctx.fill();
     }
     ctx.textAlign = 'left';
