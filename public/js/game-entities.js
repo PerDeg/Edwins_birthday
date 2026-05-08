@@ -579,47 +579,6 @@ function _enemySpikeCollision(e) {
   }
 }
 
-// ── Banana Peel ───────────────────────────────────────────────────────────────
-class BananaPeel {
-  constructor(cx, groundY) {
-    this.w = 28; this.h = 12;
-    this.x = cx - this.w / 2;
-    this.y = groundY - this.h;
-    this.alive = true;
-    this.age = 0;
-    this.lifetime = 14.0;
-    this.rot = (Math.random() - 0.5) * 0.6;
-  }
-  update(dt) {
-    this.age += dt;
-    if (this.age >= this.lifetime) this.alive = false;
-  }
-  bounds() { return { x: this.x + 4, y: this.y, w: this.w - 8, h: this.h }; }
-  draw(ctx) {
-    const fade = this.lifetime - this.age < 3.0 ? (this.lifetime - this.age) / 3.0 : 1;
-    ctx.save();
-    ctx.globalAlpha = fade;
-    ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
-    ctx.rotate(this.rot);
-    // Peel body
-    ctx.fillStyle = '#f5d53a';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 13, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Ridges
-    ctx.strokeStyle = '#c8a010'; ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(-10, -2); ctx.quadraticCurveTo(0, -7, 10, -2);
-    ctx.moveTo(-10, 2);  ctx.quadraticCurveTo(0,  7, 10,  2);
-    ctx.stroke();
-    // Brown tips
-    ctx.fillStyle = '#7a4010';
-    ctx.beginPath(); ctx.arc(-12, 0, 2.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc( 12, 0, 2.2, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-  }
-}
-
 // ── AABB collision ─────────────────────────────────────────────────────────
 function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x &&
@@ -691,8 +650,7 @@ class WeaponPickup {
   }
   update(dt) { this.bobTimer += dt * 2.4; }
   draw(ctx) {
-    if (this.type === 'heart')   { this.drawHeart(ctx);  return; }
-    if (this.type === 'banana')  { this.drawBanana(ctx); return; }
+    if (this.type === 'heart') { this.drawHeart(ctx); return; }
 
     const by = Math.sin(this.bobTimer) * 4;
     const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
@@ -780,34 +738,6 @@ class WeaponPickup {
       ctx.bezierCurveTo(12, -4, 0, -4, 0, 4);
       ctx.fill();
     }
-    ctx.restore();
-  }
-
-  drawBanana(ctx) {
-    const by = Math.sin(this.bobTimer) * 4;
-    const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
-    ctx.save();
-    // Glow
-    ctx.globalAlpha = 0.20 + Math.sin(this.bobTimer * 2) * 0.07;
-    ctx.fillStyle = '#ffe060';
-    ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-    // Banana crescent
-    ctx.translate(cx, cy);
-    ctx.rotate(this.bobTimer * 0.25);
-    ctx.fillStyle = '#f7e04a';
-    ctx.beginPath();
-    ctx.moveTo(0, -11);
-    ctx.quadraticCurveTo(13, -4, 10, 8);
-    ctx.quadraticCurveTo(3, 7, -2, 11);
-    ctx.quadraticCurveTo(-11, 2, 0, -11);
-    ctx.fill();
-    ctx.strokeStyle = '#c8a010'; ctx.lineWidth = 1;
-    ctx.stroke();
-    // Tips
-    ctx.fillStyle = '#7a4010';
-    ctx.beginPath(); ctx.arc(0, -11, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(-2,  11, 2,   0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 

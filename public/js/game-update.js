@@ -334,17 +334,6 @@ function damagePlayer() {
 }
 
 function throwWeapon() {
-  if (playerWeapon === 'banana') {
-    // Drop peel at player's feet
-    bananaPeels.push(new BananaPeel(player.x + player.w / 2, player.y + player.h));
-    throwAmmo--;
-    if (throwAmmo <= 0) { throwAmmo = 0; playerWeapon = 'sword'; }
-    ammoDisplayTimer = 1.8;
-    floatingTexts.push(new FloatingText(player.x + player.w / 2, player.y - 8, 'HALKA NU!', '#f5d53a', 1.0));
-    Audio.slash();
-    return;
-  }
-
   const cx = player.x + player.w / 2 + player.facing * 18;
   const cy = player.y + player.h * 0.3;
   if (playerWeapon === 'triple') {
@@ -435,17 +424,40 @@ function updateEnemies(dt) {
     // rectsOverlap returns false afterwards, which would suppress contact damage.
     // Dashing player powers through enemies — skip push-out entirely.
     const wasOverlapping = !player.hiding && !player.dashing && rectsOverlap(player.bounds(), e.bounds());
+    let stomped = false;
     if (wasOverlapping) {
-      const overlapL = (e.x + e.w) - player.x;
-      const overlapR = (player.x + player.w) - e.x;
-      if (overlapL < overlapR) {
-        player.x = e.x + e.w;
-        player.facing = -1;
-        if (player.vx < 0) player.vx = 0;
+      // ── Head stomp: player falls onto enemy from above ──────────────────
+      const fallingFast = player.vy > 90;
+      const feetNearTop = (player.y + player.h) <= (e.y + e.h * 0.4);
+      if (fallingFast && feetNearTop && player.invincible <= 0) {
+        stomped = true;
+        player.vy = C.JUMP_V * 0.60;                // bounce upward
+        player.jumpsLeft = Math.max(player.jumpsLeft, 1);
+        e.hp--;
+        e.hitFlash = 0.18;
+        if (e.type === 'grunt' && !e.slipping) {
+          e.slipping = true; e.slipTimer = 1.6; e.slipRot = 0;
+          e.vx = (Math.random() > 0.5 ? 1 : -1) * 100; e.vy = 0;
+        }
+        emitLandingImpact(particles, player.x + player.w / 2, player.y + player.h, 460);
+        triggerShake(5, 0.16);
+        screenFlash = Math.max(screenFlash, 0.22);
+        floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 22, 'TRAMPA!', '#ffe040', 1.55));
+        Audio.hit();
+        if (e.hp <= 0) killEnemy(e);
       } else {
-        player.x = e.x - player.w;
-        player.facing = 1;
-        if (player.vx > 0) player.vx = 0;
+        // Normal horizontal push-out
+        const overlapL = (e.x + e.w) - player.x;
+        const overlapR = (player.x + player.w) - e.x;
+        if (overlapL < overlapR) {
+          player.x = e.x + e.w;
+          player.facing = -1;
+          if (player.vx < 0) player.vx = 0;
+        } else {
+          player.x = e.x - player.w;
+          player.facing = 1;
+          if (player.vx > 0) player.vx = 0;
+        }
       }
     }
     if (player.attackActive) {
@@ -462,8 +474,8 @@ function updateEnemies(dt) {
         }
       }
     }
-    // Alert grunts and archers deal contact damage
-    const dealsDmg = e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert');
+    // Alert grunts and archers deal contact damage (stomps are immune to retaliation)
+    const dealsDmg = !stomped && (e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert'));
     if (dealsDmg && wasOverlapping && player.invincible <= 0) damagePlayer();
   }
   enemies = enemies.filter(e => e.alive || (e.dying && e.dyingTimer > 0));
@@ -664,13 +676,6 @@ function updatePickups(dt) {
           floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 32, 'TRYCK Z FÖR ATTACK!', 'rgba(160,240,255,0.85)', 0.85));
           Audio.levelUp();
         }
-      } else if (p.type === 'banana') {
-        playerWeapon = 'banana';
-        throwAmmo = C.BANANA_AMMO;
-        ammoDisplayTimer = 1.8;
-        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, 'BANANSKALEN!', '#f5d53a', 1.4));
-        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 32, `TRYCK X  ×${C.BANANA_AMMO}`, 'rgba(255,255,255,0.75)', 0.80));
-        Audio.djump();
       } else {
         playerWeapon = p.type;
         throwAmmo = C.THROW_AMMO;
@@ -680,33 +685,6 @@ function updatePickups(dt) {
       }
     }
   }
-}
-
-// ── Banana Peels ───────────────────────────────────────────────────────────────
-function updateBananaPeels(dt) {
-  for (const bp of bananaPeels) {
-    if (!bp.alive) continue;
-    bp.update(dt);
-    for (const e of enemies) {
-      if (!e.alive || e.slipping || e.dying) continue;
-      if (rectsOverlap(bp.bounds(), e.bounds())) {
-        bp.alive = false;
-        e.slipping  = true;
-        e.slipTimer = C.BANANA_STUN_TIME;
-        e.slipRot   = 0;
-        // Slide in the direction the grunt was walking
-        e.vx = (e.facing > 0 ? 1 : -1) * 200;
-        e.vy = -80;
-        e.aiState = 'patrol'; e.detectTimer = 0; e.lostTimer = 0;
-        floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 24, 'HALKAN!!', '#f5d53a', 1.7));
-        emitDust(particles, e.x + e.w / 2, e.y + e.h);
-        triggerShake(5, 0.18);
-        Audio.defeat();
-        break;
-      }
-    }
-  }
-  bananaPeels = bananaPeels.filter(bp => bp.alive);
 }
 
 // ── Spikes ─────────────────────────────────────────────────────────────────────
@@ -765,7 +743,6 @@ function update(dt) {
   updatePlayerShurikens(dt);
   updateBoss(dt);
   updatePickups(dt);
-  updateBananaPeels(dt);
   updateSpikes();
   updateCamera(dt);
   updateCombo(dt);

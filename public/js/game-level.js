@@ -27,7 +27,6 @@ function initGame() {
   levelTimer       = 0;
   levelKills       = 0;
   lastLevelRank    = '';
-  bananaPeels      = [];
   groundPoundWave  = null;
 
   loadLevel(0);
@@ -140,7 +139,6 @@ function loadLevel(idx) {
   levelTotalEnemies = enemies.length;  // track spawned count for rank
   levelTimer  = 0;
   levelKills  = 0;
-  bananaPeels = [];
   groundPoundWave = null;
 
   cam.x = 0; cam.shake = 0; cam.shakeDur = 0;

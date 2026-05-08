@@ -250,13 +250,6 @@ function draw(dt) {
     p.draw(ctx);
   }
 
-  if (typeof bananaPeels !== 'undefined') {
-    for (const bp of bananaPeels) {
-      if (!bp.alive || bp.x + bp.w < cam.x - 20 || bp.x > cam.x + C.W + 20) continue;
-      bp.draw(ctx);
-    }
-  }
-
   for (const e of enemies) {
     if (e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
     if (e.dying) {

@@ -87,8 +87,8 @@ const HUD = (() => {
 
     // ── Weapon indicator ──
     if (playerWeapon && playerWeapon !== 'sword') {
-      const labels = { shuriken: '✦ KASTSTJÄRNA', triple: '✦✦✦ TRIPPELSTJÄRNA', knife: '» KNIV', banana: '🍌 BANANSKALET' };
-      const weaponCol = playerWeapon === 'banana' ? '#f5d53a' : '#4fc3f7';
+      const labels = { shuriken: '✦ KASTSTJÄRNA', triple: '✦✦✦ TRIPPELSTJÄRNA', knife: '» KNIV' };
+      const weaponCol = '#4fc3f7';
       const ammoStr = throwAmmo != null ? `  ×${throwAmmo}  [X]` : '  [X]';
       ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'right';
       ctx.fillStyle = weaponCol;

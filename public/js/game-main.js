@@ -102,8 +102,7 @@ let levelKills        = 0;   // enemy kills in current level (excluding boss)
 let levelTotalEnemies = 0;   // total enemies spawned this level
 let lastLevelRank     = '';  // 'S'|'A'|'B'|'C'|'D'
 
-// ── Banana peels & ground pound wave ──────────────────────────────────────────
-let bananaPeels    = [];
+// ── Ground pound wave ─────────────────────────────────────────────────────────
 let groundPoundWave = null;
 
 // ── Camera ─────────────────────────────────────────────────────────────────────
