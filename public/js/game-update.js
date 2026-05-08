@@ -279,9 +279,9 @@ function updatePlayer(dt) {
       p.groundPound = false;
       triggerShake(9, 0.28);
       emitLandingImpact(particles, p.x + p.w / 2, p.y + p.h, 700);
-      groundPoundWave = { x: p.x + p.w / 2, y: p.y + p.h, r: 8, maxR: GP_RANGE + 30, timer: 0.38 };
       Audio.hit();
       const GP_RANGE = 80;
+      groundPoundWave = { x: p.x + p.w / 2, y: p.y + p.h, r: 8, maxR: GP_RANGE + 30, timer: 0.38 };
       const pcx = p.x + p.w / 2;
       for (const e of enemies) {
         if (!e.alive) continue;
