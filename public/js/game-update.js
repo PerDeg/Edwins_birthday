@@ -229,39 +229,48 @@ function updatePlayer(dt) {
     if (p.invincible > 0)     p.invincible     -= dt;
     if (throwCooldown > 0)    throwCooldown    -= dt;
 
-    // Release on jump press → carry swing momentum, restore a jump
-    if (jumpPressed) {
+    // Space releases the grapple (carries swing momentum, restores one jump)
+    if (keyJustPressed('Space')) {
       p.hooked = null;
       p.jumpsLeft = Math.max(p.jumpsLeft, 1);
-    } else {
-      const anchor = p.hooked;
-      // Apply gravity and optional swing-boost from left/right input
-      p.vy += C.GRAVITY * dt;
-      if (left)  p.vx -= 280 * dt;
-      if (right) p.vx += 280 * dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-
-      // Constraint: keep player at rope length from anchor
-      const dx   = (p.x + p.w / 2) - anchor.x;
-      const dy   = (p.y + p.h / 2) - anchor.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > anchor.len && dist > 1) {
-        const nx = dx / dist, ny = dy / dist;
-        const dot = p.vx * nx + p.vy * ny;
-        if (dot > 0) { p.vx -= dot * nx; p.vy -= dot * ny; }
-        p.x = anchor.x + nx * anchor.len - p.w / 2;
-        p.y = anchor.y + ny * anchor.len - p.h / 2;
-      }
-
-      // Left camera boundary
-      if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
-
-      // Auto-release when landing on ground or platform
-      platformCollision(p);
-      if (p.onGround) { p.hooked = null; p.jumpsLeft = 2; }
-      else if (p.y + p.h >= C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
+      p.facing = p.vx > 5 ? 1 : p.vx < -5 ? -1 : p.facing;
+      p.state = 'jump'; p.prevState = 'jump';
+      p.animTimer += dt; if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
+      return;
     }
+
+    const anchor = p.hooked;
+
+    // Up/W climbs the rope (shortens length toward anchor)
+    const upHeld = keys['ArrowUp'] || keys['KeyW'];
+    if (upHeld && anchor.len > 32) anchor.len = Math.max(32, anchor.len - C.HOOK_CLIMB_SPEED * dt);
+
+    // Apply gravity; left/right boosts the swing
+    p.vy += C.GRAVITY * dt;
+    if (left)  p.vx -= 280 * dt;
+    if (right) p.vx += 280 * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    // Constraint: keep player at rope length from anchor
+    const dx   = (p.x + p.w / 2) - anchor.x;
+    const dy   = (p.y + p.h / 2) - anchor.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > anchor.len && dist > 1) {
+      const nx = dx / dist, ny = dy / dist;
+      const dot = p.vx * nx + p.vy * ny;
+      if (dot > 0) { p.vx -= dot * nx; p.vy -= dot * ny; }
+      p.x = anchor.x + nx * anchor.len - p.w / 2;
+      p.y = anchor.y + ny * anchor.len - p.h / 2;
+    }
+
+    // Left camera boundary
+    if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
+
+    // Auto-release when landing on a platform or the ground
+    platformCollision(p);
+    if (p.onGround) { p.hooked = null; p.jumpsLeft = 2; }
+    else if (p.y + p.h >= C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
 
     p.facing = p.vx > 5 ? 1 : p.vx < -5 ? -1 : p.facing;
     p.state  = 'jump'; p.prevState = 'jump';
@@ -298,18 +307,6 @@ function updatePlayer(dt) {
         p.facing = -wallDir;
         emitDust(particles, p.x + (wallDir > 0 ? p.w : 0), p.y + p.h * 0.5);
         Audio.jump();
-      } else if (p.jumpsLeft === 1 && !p.onGround && !p.onLadder) {
-        // Double-jump: try grapple first; fall back to standard double jump
-        const hookTarget = _findHookTarget(p);
-        if (hookTarget) {
-          p.hooked = hookTarget;
-          p.jumpsLeft = 0;
-          emitDust(particles, p.x + p.w / 2, p.y);
-          Audio.slash();
-        } else {
-          p.vy = C.JUMP_V; p.jumpsLeft--;
-          emitDoubleJump(particles, p.x + p.w / 2, p.y + p.h); Audio.djump();
-        }
       } else if (p.jumpsLeft > 0) {
         const wasDouble = p.jumpsLeft === 1;
         p.vy = C.JUMP_V; p.jumpsLeft--;
@@ -317,6 +314,17 @@ function updatePlayer(dt) {
         if (wasDouble) { emitDoubleJump(particles, p.x + p.w / 2, p.y + p.h); Audio.djump(); }
         else Audio.jump();
       }
+    }
+  }
+
+  // ── Grapple launch: Up/W while airborne with no jumps remaining ───────────────
+  const upJust = keyJustPressed('ArrowUp') || keyJustPressed('KeyW');
+  if (upJust && !p.onGround && !p.hooked && !p.onLadder && p.jumpsLeft === 0 && !p.dashing) {
+    const hookTarget = _findHookTarget(p);
+    if (hookTarget) {
+      p.hooked = hookTarget;
+      emitDust(particles, p.x + p.w / 2, p.y);
+      Audio.slash();
     }
   }
 

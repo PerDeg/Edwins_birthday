@@ -86,6 +86,7 @@ const C = {
 
   // Grappling hook
   HOOK_RANGE:          250,   // max distance to grapple anchor
+  HOOK_CLIMB_SPEED:    120,   // px/s rope shortens when holding Up
 
   // Smoke bomb
   SMOKE_DURATION:      4.5,   // seconds cloud lasts
