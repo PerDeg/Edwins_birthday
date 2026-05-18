@@ -80,6 +80,8 @@ let coins         = [], pickups = [], playerShurikens = [], boss = null;
 let hidingSpots   = [];
 let ladders       = [], spikes = [];
 let movingPlatforms = [];
+let checkpoints   = [];
+let smokeBombs    = [];
 
 // ── Counters & flags ───────────────────────────────────────────────────────────
 let score = 0, combo = 1, comboTimer = 0, lives = 0, level = 1, kills = 0;
@@ -101,6 +103,7 @@ let levelTimer        = 0;   // seconds elapsed in current level
 let levelKills        = 0;   // enemy kills in current level (excluding boss)
 let levelTotalEnemies = 0;   // total enemies spawned this level
 let lastLevelRank     = '';  // 'S'|'A'|'B'|'C'|'D'
+let levelAlertCount   = 0;   // number of unique grunt alerts this level (stealth run tracking)
 
 // ── Ground pound wave ─────────────────────────────────────────────────────────
 let groundPoundWave = null;

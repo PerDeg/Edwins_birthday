@@ -26,6 +26,7 @@ function initGame() {
   ammoDisplayTimer = 0;
   levelTimer       = 0;
   levelKills       = 0;
+  levelAlertCount  = 0;
   lastLevelRank    = '';
   groundPoundWave  = null;
 
@@ -71,6 +72,7 @@ function loadLevel(idx) {
   enemies         = [];
   coins           = [];
   hidingSpots = (ld.hidingSpots || []).map(h => new HidingSpot(h.type, h.x, h.y, h.rotation || 0));
+  checkpoints = (ld.checkpoints || []).map(c => new Checkpoint(c.x));
   ladders     = (ld.ladders || []).map(l => new Ladder(l.x, l.y, l.w || 24, l.h || 96, l.rotation || 0));
   spikes      = (ld.spikes  || []).map(s => new Spike(s.x, s.y, s.rotation !== undefined ? s.rotation : 180));
   pickups         = ld.pickups.map(p => new WeaponPickup(p.x, p.y, p.type));
@@ -100,6 +102,10 @@ function loadLevel(idx) {
           const g = new Grunt(e.x, plat, C.ENEMY_SPEED_MUL);
           g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
           enemies.push(g);
+        } else if (e.type === 'shield-grunt') {
+          const sg = new ShieldGrunt(e.x, plat, C.ENEMY_SPEED_MUL);
+          sg.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+          enemies.push(sg);
         } else {
           enemies.push(new Archer(e.x, plat, C.ENEMY_SPEED_MUL, shootInt));
         }
@@ -115,6 +121,10 @@ function loadLevel(idx) {
         const g = new Grunt(ex, plat, C.ENEMY_SPEED_MUL);
         g.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
         enemies.push(g);
+      } else if (e.type === 'shield-grunt') {
+        const sg = new ShieldGrunt(ex, plat, C.ENEMY_SPEED_MUL);
+        sg.vx = (Math.random() > 0.5 ? 1 : -1) * speedBase * C.ENEMY_SPEED_MUL;
+        enemies.push(sg);
       } else {
         enemies.push(new Archer(ex, plat, C.ENEMY_SPEED_MUL, shootInt));
       }
@@ -137,9 +147,11 @@ function loadLevel(idx) {
   boss = new Boss(bd.x, bd.y, bossPlat, bd.hp, bd.type);
 
   levelTotalEnemies = enemies.length;  // track spawned count for rank
-  levelTimer  = 0;
-  levelKills  = 0;
-  groundPoundWave = null;
+  levelTimer       = 0;
+  levelKills       = 0;
+  levelAlertCount  = 0;
+  groundPoundWave  = null;
+  smokeBombs       = [];
 
   cam.x = 0; cam.shake = 0; cam.shakeDur = 0;
   if (player) {

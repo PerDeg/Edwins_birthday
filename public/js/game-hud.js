@@ -51,6 +51,16 @@ const HUD = (() => {
     ctx.fillStyle = '#e63946';
     ctx.fillText('♥', bx - 2, by + bh);
 
+    // ── Stealth run indicator ──
+    if (typeof levelAlertCount !== 'undefined' && levelAlertCount === 0) {
+      ctx.save();
+      ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
+      ctx.globalAlpha = 0.55 + Math.sin(Date.now() * 0.004) * 0.25;
+      ctx.fillStyle = '#a0f0a0';
+      ctx.fillText('👁 STEALTH RUN', 14, 52);
+      ctx.globalAlpha = 1; ctx.restore();
+    }
+
     // ── Gem power indicator ──
     if (gemPower) {
       ctx.save();
@@ -87,7 +97,7 @@ const HUD = (() => {
 
     // ── Weapon indicator ──
     if (playerWeapon && playerWeapon !== 'sword') {
-      const labels = { shuriken: '✦ KASTSTJÄRNA', triple: '✦✦✦ TRIPPELSTJÄRNA', knife: '» KNIV' };
+      const labels = { shuriken: '✦ KASTSTJÄRNA', triple: '✦✦✦ TRIPPELSTJÄRNA', knife: '» KNIV', smoke: '◎ RÖKBOMB' };
       const weaponCol = '#4fc3f7';
       const ammoStr = throwAmmo != null ? `  ×${throwAmmo}  [X]` : '  [X]';
       ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'right';

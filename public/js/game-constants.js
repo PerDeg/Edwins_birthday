@@ -81,6 +81,23 @@ const C = {
   AMBUSH_WINDOW:       1.8,   // seconds arc is shown while hiding near an enemy
   AMBUSH_GRACE:        0.45,  // seconds after exiting hiding to land the ambush attack
 
+  // Wall jump
+  WALL_JUMP_VX:        210,   // horizontal kick speed away from wall
+
+  // Grappling hook
+  HOOK_RANGE:          250,   // max distance to grapple anchor
+
+  // Smoke bomb
+  SMOKE_DURATION:      4.5,   // seconds cloud lasts
+  SMOKE_RANGE:         110,   // cloud radius
+  SMOKE_AMMO:          3,     // charges per pickup
+
+  // Stealth run bonus
+  STEALTH_RUN_BONUS:   500,
+
+  // Shield grunt
+  SHIELD_GRUNT_HP:     4,
+
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
     {
@@ -107,13 +124,14 @@ const C = {
         { x: 3280, y: 370, w: 360 },   // 14 — boss arena
       ],
       enemies: [
-        { type: 'grunt',  platIdx: 1 },
-        { type: 'grunt',  platIdx: 3 },
-        { type: 'grunt',  platIdx: 5 },
-        { type: 'archer', platIdx: 7 },
-        { type: 'grunt',  platIdx: 9 },
-        { type: 'archer', platIdx: 11 },
-        { type: 'grunt',  platIdx: 13 },
+        { type: 'grunt',        platIdx: 1 },
+        { type: 'grunt',        platIdx: 3 },
+        { type: 'grunt',        platIdx: 5 },
+        { type: 'archer',       platIdx: 7 },
+        { type: 'grunt',        platIdx: 9 },
+        { type: 'shield-grunt', platIdx: 10 },
+        { type: 'archer',       platIdx: 11 },
+        { type: 'grunt',        platIdx: 13 },
       ],
       coins: [],
       hidingSpots: [
@@ -129,10 +147,12 @@ const C = {
         { type: 'barrel', x: 2605, y: 256 },   // on plat 11 (y 290)
       ],
       pickups: [
+        { type: 'smoke',    x:  448, y: 306 },
         { type: 'shuriken', x: 1090, y: 354 },
         { type: 'heart',    x: 1920, y: 260 },
         { type: 'triple',   x: 2615, y: 254 },
       ],
+      checkpoints: [{ x: 1750 }],
       groundEnemies: [
         { x: 310,  range: 180 },
         { x: 590,  range: 180 },
@@ -180,18 +200,19 @@ const C = {
         { x: 4100, y: 360, w: 380 },   // 18 — boss arena
       ],
       enemies: [
-        { type: 'grunt',  platIdx: 0 },
-        { type: 'archer', platIdx: 2 },
-        { type: 'grunt',  platIdx: 3 },
-        { type: 'archer', platIdx: 4 },
-        { type: 'grunt',  platIdx: 6 },
-        { type: 'grunt',  platIdx: 7 },
-        { type: 'archer', platIdx: 8 },
-        { type: 'grunt',  platIdx: 10 },
-        { type: 'archer', platIdx: 12 },
-        { type: 'grunt',  platIdx: 14 },
-        { type: 'archer', platIdx: 16 },
-        { type: 'grunt',  platIdx: 17 },
+        { type: 'grunt',        platIdx: 0 },
+        { type: 'archer',       platIdx: 2 },
+        { type: 'grunt',        platIdx: 3 },
+        { type: 'archer',       platIdx: 4 },
+        { type: 'grunt',        platIdx: 6 },
+        { type: 'grunt',        platIdx: 7 },
+        { type: 'archer',       platIdx: 8 },
+        { type: 'shield-grunt', platIdx: 10 },
+        { type: 'archer',       platIdx: 12 },
+        { type: 'grunt',        platIdx: 14 },
+        { type: 'shield-grunt', platIdx: 15 },
+        { type: 'archer',       platIdx: 16 },
+        { type: 'grunt',        platIdx: 17 },
       ],
       coins: [],
       hidingSpots: [
@@ -208,11 +229,13 @@ const C = {
         { type: 'shadow', x: 3580, y: 600 },   // ground
       ],
       pickups: [
-        { type: 'shuriken', x: 800,  y: 338 },
+        { type: 'shuriken', x:  800, y: 338 },
+        { type: 'smoke',    x: 1375, y: 266 },
         { type: 'knife',    x: 2040, y: 368 },
         { type: 'heart',    x: 2700, y: 258 },
         { type: 'triple',   x: 3660, y: 266 },
       ],
+      checkpoints: [{ x: 2360 }],
       groundEnemies: [
         { x: 290,  range: 180 },
         { x: 570,  range: 200 },
@@ -225,7 +248,7 @@ const C = {
         { x: 3520, range: 180 },
         { x: 3870, range: 200 },
       ],
-      boss: { x: 4220, y: 298, hp: 12, type: 'archer-boss' },
+      boss: { x: 4220, y: 312, hp: 8, type: 'ninja-duel' },
       movingPlatforms: [
         { x: 700,  y: 495, w: 85, axis: 'x', range: 95, speed: 60 },
         { x: 2180, y: 490, w: 80, axis: 'y', range: 80, speed: 52, phase: 0.25 },
@@ -266,22 +289,22 @@ const C = {
         { x: 4880, y: 355, w: 400 },   // 22 — boss arena
       ],
       enemies: [
-        { type: 'grunt',  platIdx: 0 },
-        { type: 'archer', platIdx: 1 },
-        { type: 'grunt',  platIdx: 3 },
-        { type: 'grunt',  platIdx: 4 },
-        { type: 'archer', platIdx: 5 },
-        { type: 'grunt',  platIdx: 7 },
-        { type: 'archer', platIdx: 8 },
-        { type: 'grunt',  platIdx: 9 },
-        { type: 'archer', platIdx: 11 },
-        { type: 'grunt',  platIdx: 12 },
-        { type: 'grunt',  platIdx: 13 },
-        { type: 'archer', platIdx: 15 },
-        { type: 'grunt',  platIdx: 16 },
-        { type: 'archer', platIdx: 18 },
-        { type: 'grunt',  platIdx: 19 },
-        { type: 'archer', platIdx: 21 },
+        { type: 'grunt',        platIdx: 0 },
+        { type: 'archer',       platIdx: 1 },
+        { type: 'grunt',        platIdx: 3 },
+        { type: 'grunt',        platIdx: 4 },
+        { type: 'archer',       platIdx: 5 },
+        { type: 'grunt',        platIdx: 7 },
+        { type: 'archer',       platIdx: 8 },
+        { type: 'grunt',        platIdx: 9 },
+        { type: 'archer',       platIdx: 11 },
+        { type: 'shield-grunt', platIdx: 12 },
+        { type: 'grunt',        platIdx: 13 },
+        { type: 'archer',       platIdx: 15 },
+        { type: 'grunt',        platIdx: 16 },
+        { type: 'archer',       platIdx: 18 },
+        { type: 'shield-grunt', platIdx: 19 },
+        { type: 'archer',       platIdx: 21 },
       ],
       coins: [],
       hidingSpots: [
@@ -303,12 +326,15 @@ const C = {
         { type: 'barrel', x: 4180, y: 251 },   // on plat 19 (y 285)
       ],
       pickups: [
-        { type: 'shuriken', x: 580,  y: 386 },
+        { type: 'smoke',    x:  580, y: 386 },
+        { type: 'shuriken', x:  955, y: 351 },
         { type: 'knife',    x: 1495, y: 266 },
         { type: 'heart',    x: 2360, y: 258 },
         { type: 'triple',   x: 2585, y: 350 },
+        { type: 'smoke',    x: 3690, y: 256 },
         { type: 'knife',    x: 3925, y: 338 },
       ],
+      checkpoints: [{ x: 2760 }],
       groundEnemies: [
         { x: 260,  range: 180 },
         { x: 545,  range: 200 },

@@ -72,6 +72,31 @@ function platformCollision(entity) {
   return onPlat;
 }
 
+// ── Wall contact detector ─────────────────────────────────────────────────────
+function _getWallContact(p) {
+  if (p.onGround || p.onLadder) return 0;
+  for (const pl of platforms) {
+    if (p.y >= pl.y + pl.h || p.y + p.h <= pl.y - 8) continue;
+    if (Math.abs((p.x + p.w) - pl.x) < 7 && p.vx >= -20) return  1;  // wall on right
+    if (Math.abs(p.x - (pl.x + pl.w)) < 7 && p.vx <=  20) return -1;  // wall on left
+  }
+  return 0;
+}
+
+// ── Grapple target finder ─────────────────────────────────────────────────────
+function _findHookTarget(p) {
+  const pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
+  let best = null, bestDist = C.HOOK_RANGE;
+  for (const pl of platforms) {
+    const ax  = Math.max(pl.x + 8, Math.min(pl.x + pl.w - 8, pcx));
+    const ay  = pl.y;
+    if (ay >= pcy - 20) continue;   // must be above player centre
+    const d = Math.hypot(ax - pcx, ay - pcy);
+    if (d < bestDist) { best = { x: ax, y: ay, len: d }; bestDist = d; }
+  }
+  return best;
+}
+
 // ── Player update ──────────────────────────────────────────────────────────────
 function updatePlayer(dt) {
   const p = player;
@@ -171,7 +196,7 @@ function updatePlayer(dt) {
           triggerShake(9, 0.22);
           Audio.hit();
           if (e.hp <= 0) killEnemy(e);
-          else if (e.type === 'grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
+          else if (e.type === 'grunt' || e.type === 'shield-grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
       if (boss && boss.alive && !p.dashHitSet.has(boss) && rectsOverlap(p.bounds(), boss.bounds())) {
@@ -198,6 +223,52 @@ function updatePlayer(dt) {
     p.dashing = false;   // dash expired — fall through to normal physics this frame
   }
 
+  // ── Grappling hook (while hooked) ──────────────────────────────────────────
+  if (p.hooked) {
+    if (p.attackCooldown > 0) p.attackCooldown -= dt;
+    if (p.invincible > 0)     p.invincible     -= dt;
+    if (throwCooldown > 0)    throwCooldown    -= dt;
+
+    // Release on jump press → carry swing momentum, restore a jump
+    if (jumpPressed) {
+      p.hooked = null;
+      p.jumpsLeft = Math.max(p.jumpsLeft, 1);
+    } else {
+      const anchor = p.hooked;
+      // Apply gravity and optional swing-boost from left/right input
+      p.vy += C.GRAVITY * dt;
+      if (left)  p.vx -= 280 * dt;
+      if (right) p.vx += 280 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Constraint: keep player at rope length from anchor
+      const dx   = (p.x + p.w / 2) - anchor.x;
+      const dy   = (p.y + p.h / 2) - anchor.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > anchor.len && dist > 1) {
+        const nx = dx / dist, ny = dy / dist;
+        const dot = p.vx * nx + p.vy * ny;
+        if (dot > 0) { p.vx -= dot * nx; p.vy -= dot * ny; }
+        p.x = anchor.x + nx * anchor.len - p.w / 2;
+        p.y = anchor.y + ny * anchor.len - p.h / 2;
+      }
+
+      // Left camera boundary
+      if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
+
+      // Auto-release when landing on ground or platform
+      platformCollision(p);
+      if (p.onGround) { p.hooked = null; p.jumpsLeft = 2; }
+      else if (p.y + p.h >= C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
+    }
+
+    p.facing = p.vx > 5 ? 1 : p.vx < -5 ? -1 : p.facing;
+    p.state  = 'jump'; p.prevState = 'jump';
+    p.animTimer += dt; if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
+    return;
+  }
+
   // ── Ladder detection ────────────────────────────────────────────────────
   if (p.ladderCooldown > 0) p.ladderCooldown -= dt;
   p.onLadder = false;
@@ -216,15 +287,36 @@ function updatePlayer(dt) {
   p.vx = right ? spd : left ? -spd : 0;
   if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
 
-  if (jumpPressed && p.jumpsLeft > 0) {
-    // On ladder: only Space jumps off; ArrowUp/W climb instead of jump
-    const allowJump = !p.onLadder || keyJustPressed('Space');
+  if (jumpPressed && !p.hooked) {
+    const allowJump = !p.onLadder || jumpPressed;
     if (allowJump) {
-      const wasDouble = p.jumpsLeft === 1;
-      p.vy = C.JUMP_V; p.jumpsLeft--;
-      if (p.onLadder) { p.onLadder = false; p.ladderCooldown = 0.4; _activeLadder = null; }
-      if (wasDouble) { emitDoubleJump(particles, p.x + p.w/2, p.y + p.h); Audio.djump(); }
-      else Audio.jump();
+      // Wall jump takes priority when in the air near a platform edge
+      const wallDir = !p.onGround && !p.onLadder ? _getWallContact(p) : 0;
+      if (wallDir !== 0) {
+        p.vy = C.JUMP_V;
+        p.vx = -wallDir * C.WALL_JUMP_VX;
+        p.facing = -wallDir;
+        emitDust(particles, p.x + (wallDir > 0 ? p.w : 0), p.y + p.h * 0.5);
+        Audio.jump();
+      } else if (p.jumpsLeft === 1 && !p.onGround && !p.onLadder) {
+        // Double-jump: try grapple first; fall back to standard double jump
+        const hookTarget = _findHookTarget(p);
+        if (hookTarget) {
+          p.hooked = hookTarget;
+          p.jumpsLeft = 0;
+          emitDust(particles, p.x + p.w / 2, p.y);
+          Audio.slash();
+        } else {
+          p.vy = C.JUMP_V; p.jumpsLeft--;
+          emitDoubleJump(particles, p.x + p.w / 2, p.y + p.h); Audio.djump();
+        }
+      } else if (p.jumpsLeft > 0) {
+        const wasDouble = p.jumpsLeft === 1;
+        p.vy = C.JUMP_V; p.jumpsLeft--;
+        if (p.onLadder) { p.onLadder = false; p.ladderCooldown = 0.4; _activeLadder = null; }
+        if (wasDouble) { emitDoubleJump(particles, p.x + p.w / 2, p.y + p.h); Audio.djump(); }
+        else Audio.jump();
+      }
     }
   }
 
@@ -262,10 +354,26 @@ function updatePlayer(dt) {
   if (p.onLadder) {
     const climbUp   = keys['ArrowUp']   || keys['KeyW'];
     const climbDown = keys['ArrowDown'] || keys['KeyS'];
-    p.vy = climbUp ? -C.LADDER_SPEED : climbDown ? C.LADDER_SPEED : 0;
-    p.x  = _activeLadder.x + (_activeLadder.w - p.w) / 2;  // centre on ladder
-    p.jumpsLeft = Math.max(p.jumpsLeft, 1);
-  } else {
+    // Step off sideways: pressing left/right detaches the player if the path is clear
+    const sideDir = right ? 1 : left ? -1 : 0;
+    if (sideDir !== 0) {
+      // Check for a platform wall blocking that direction
+      const testX = sideDir > 0 ? p.x + p.w + 2 : p.x - 10;
+      const blocked = platforms.some(pl =>
+        testX < pl.x + pl.w && testX + 8 > pl.x &&
+        p.y + p.h - 6 > pl.y && p.y + 8 < pl.y + pl.h
+      );
+      if (!blocked) {
+        p.onLadder = false; _activeLadder = null; p.ladderCooldown = 0.25;
+      }
+    }
+    if (p.onLadder) {
+      p.vy = climbUp ? -C.LADDER_SPEED : climbDown ? C.LADDER_SPEED : 0;
+      p.x  = _activeLadder.x + (_activeLadder.w - p.w) / 2;
+      p.jumpsLeft = Math.max(p.jumpsLeft, 1);
+    }
+  }
+  if (!p.onLadder) {
     const jumpHeld = !!(keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
     p.vy += C.GRAVITY * ((!jumpHeld && p.vy < 0) ? 3.5 : 1.0) * dt;
   }
@@ -349,12 +457,39 @@ function damagePlayer() {
   triggerShake(10, 0.35);
   emitHit(particles, player.x + player.w / 2, player.y + player.h / 2);
   Audio.hit();
-  if (playerHp <= 0) { gameState = STATE.GAMEOVER; Audio.stop(); }
+  if (playerHp <= 0) {
+    const activeCP = [...checkpoints].reverse().find(c => c.activated);
+    if (activeCP) {
+      playerHp       = 40;
+      player.x       = activeCP.x - player.w / 2;
+      player.y       = C.GROUND_Y - player.h;
+      player.vx      = 0; player.vy = 0;
+      player.hooked  = null;
+      player.onGround = false;
+      player.jumpsLeft = 2;
+      player.invincible = 2.5;
+      cam.x = Math.max(0, activeCP.x - C.W * 0.40);
+      screenFlash = 0.9;
+      triggerShake(12, 0.5);
+      floatingTexts.push(new FloatingText(player.x + player.w/2, player.y - 50, 'ÅTERUPPSTOD!', '#88ff88', 2.0));
+      Audio.levelUp();
+    } else {
+      gameState = STATE.GAMEOVER; Audio.stop();
+    }
+  }
 }
 
 function throwWeapon() {
   const cx = player.x + player.w / 2 + player.facing * 18;
   const cy = player.y + player.h * 0.3;
+  if (playerWeapon === 'smoke') {
+    smokeBombs.push(new SmokeBomb(player.x + player.facing * 90, player.y + player.h * 0.5));
+    throwAmmo--;
+    if (throwAmmo <= 0) { throwAmmo = 0; playerWeapon = 'sword'; }
+    ammoDisplayTimer = 1.8;
+    Audio.slash();
+    return;
+  }
   if (playerWeapon === 'triple') {
     [-0.18, 0, 0.18].forEach(a =>
       playerShurikens.push(new PlayerShuriken(cx, cy, player.facing, 'shuriken', a)));
@@ -431,8 +566,8 @@ function updateEnemies(dt) {
     // Skip enemies far off-screen that can't possibly interact with the player.
     // Detection range is 230px so a 450px margin is safe. Always update alert grunts.
     const nearViewport = e.x + e.w > cam.x - 450 && e.x < cam.x + C.W + 450;
-    if (!nearViewport && (e.type !== 'grunt' || e.aiState === 'patrol')) continue;
-    if (e.type === 'grunt') {
+    if (!nearViewport && (e.type !== 'grunt' && e.type !== 'shield-grunt' || e.aiState === 'patrol')) continue;
+    if (e.type === 'grunt' || e.type === 'shield-grunt') {
       e.updateStealth(dt, player);
       e.update(dt, player);
     } else {
@@ -454,7 +589,7 @@ function updateEnemies(dt) {
         player.jumpsLeft = Math.max(player.jumpsLeft, 1);
         e.hp--;
         e.hitFlash = 0.18;
-        if (e.type === 'grunt' && !e.slipping) {
+        if ((e.type === 'grunt' || e.type === 'shield-grunt') && !e.slipping) {
           e.slipping = true; e.slipTimer = 1.6; e.slipRot = 0;
           e.vx = (Math.random() > 0.5 ? 1 : -1) * 100; e.vy = 0;
         }
@@ -487,19 +622,30 @@ function updateEnemies(dt) {
           player.ambushReady = 0;
           killEnemy(e, true);
           floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 40, 'MÖRDARHOPP!', '#ffe040', 1.9));
-        } else if (e.type === 'grunt' && e.aiState !== 'alert' && e.isBehind(player)) {
+        } else if ((e.type === 'grunt' || e.type === 'shield-grunt') && e.aiState !== 'alert' && e.isBehind(player)) {
           killEnemy(e, true);
+        } else if (e.type === 'shield-grunt' && e.shieldBlocks(player.x + player.w / 2)) {
+          // Shield blocks the hit — knock player back
+          player.vx       = -player.facing * 230;
+          player.vy       = -110;
+          player.attacking = false;
+          triggerShake(5, 0.18);
+          emitHit(particles, hb.x + hb.w / 2, hb.y + hb.h / 2);
+          Audio.shieldBlock ? Audio.shieldBlock() : Audio.hit();
+          floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 32, 'BLOCKAD!', '#88aaff', 1.2));
+          e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME;
         } else {
           e.hp--;
           e.hitFlash = 0.12;
           emitHit(particles, e.x + e.w/2, e.y + e.h/2);
           if (e.hp <= 0) killEnemy(e);
-          else if (e.type === 'grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
+          else if (e.type === 'grunt' || e.type === 'shield-grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
     }
     // Alert grunts and archers deal contact damage (stomps are immune to retaliation)
-    const dealsDmg = !stomped && (e.type === 'archer' || (e.type === 'grunt' && e.aiState === 'alert'));
+    const dealsDmg = !stomped && (e.type === 'archer' ||
+      ((e.type === 'grunt' || e.type === 'shield-grunt') && e.aiState === 'alert'));
     if (dealsDmg && wasOverlapping && player.invincible <= 0) damagePlayer();
   }
   enemies = enemies.filter(e => e.alive || (e.dying && e.dyingTimer > 0));
@@ -514,6 +660,14 @@ function killEnemy(e, stealth = false) {
   e.dyingRot    = 0;
   e.dyingRotSpd = (Math.random() > 0.5 ? 1 : -1) * (7 + Math.random() * 9);
   kills++; levelKills++;
+  // Drop 1-3 coins at kill position
+  const dropCount = 1 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < dropCount; i++) {
+    const c = new Coin(e.x + e.w / 2 - 10 + i * 10, e.y);
+    c.vy = -(80 + Math.random() * 120);
+    c.vx = (Math.random() - 0.5) * 120;
+    coins.push(c);
+  }
   combo = Math.min(combo + 1, C.MAX_COMBO);
   comboTimer = C.COMBO_TIMEOUT;
   const basePts = C.KILL_SCORE * combo;
@@ -534,7 +688,7 @@ function killEnemy(e, stealth = false) {
   // Normal kills alert nearby guards (stealth kills are silent)
   if (!stealth) {
     for (const other of enemies) {
-      if (!other.alive || other === e || other.type !== 'grunt') continue;
+      if (!other.alive || other === e || (other.type !== 'grunt' && other.type !== 'shield-grunt')) continue;
       if (Math.hypot(other.x - e.x, other.y - e.y) < 260) {
         other.aiState = 'alert'; other.detectTimer = C.DETECTION_TIME;
       }
@@ -586,6 +740,13 @@ function killBoss() {
   triggerShake(22, 0.9);
   screenFlash = 1;
   Audio.defeat();
+
+  // Stealth run bonus
+  if (levelAlertCount === 0) {
+    score += C.STEALTH_RUN_BONUS;
+    floatingTexts.push(new FloatingText(boss.x + boss.w/2, boss.y - 80, 'STEALTH RUN!', '#a0f0ff', 2.2));
+    floatingTexts.push(new FloatingText(boss.x + boss.w/2, boss.y - 108, `+${C.STEALTH_RUN_BONUS} BONUS`, C.COL_GOLD, 1.6));
+  }
 
   // Compute level rank
   const killFrac = levelTotalEnemies > 0 ? levelKills / levelTotalEnemies : 1;
@@ -656,7 +817,7 @@ function updatePlayerShurikens(dt) {
         emitBloodSplat(particles, e.x + e.w / 2, e.y + e.h * 0.4, s.vx > 0 ? 1 : -1);
         if (e.hp <= 0) {
           killEnemy(e);
-        } else if (e.type === 'grunt') {
+        } else if (e.type === 'grunt' || e.type === 'shield-grunt') {
           e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME;
         }
         if (!s.piercing) { s.alive = false; break; }
@@ -673,6 +834,14 @@ function updateCoins(dt) {
   const mpx = player.x + player.w / 2, mpy = player.y + player.h / 2;
   for (const c of coins) {
     if (!c.alive) continue;
+    // Physics for dropped coins before they settle
+    if (c.vy !== undefined && (Math.abs(c.vx) > 1 || c.y < C.GROUND_Y - c.h - 2)) {
+      c.vy += C.GRAVITY * 0.6 * dt;
+      c.x  += c.vx * dt;
+      c.y  += c.vy * dt;
+      c.vx *= Math.max(0, 1 - 2 * dt);
+      if (c.y + c.h >= C.GROUND_Y) { c.y = C.GROUND_Y - c.h; c.vy = 0; c.vx *= 0.4; }
+    }
     c.update(dt);
     // Magnetic attraction
     const cdx = (c.x + c.w / 2) - mpx, cdy = (c.y + c.h / 2) - mpy;
@@ -714,6 +883,12 @@ function updatePickups(dt) {
           floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 32, 'TRYCK Z FÖR ATTACK!', 'rgba(160,240,255,0.85)', 0.85));
           Audio.levelUp();
         }
+      } else if (p.type === 'smoke') {
+        playerWeapon = 'smoke';
+        throwAmmo    = C.SMOKE_AMMO;
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, 'RÖKBOMB!', '#88cc88', 1.2));
+        floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, `TRYCK X  ×${C.SMOKE_AMMO}`, 'rgba(255,255,255,0.75)', 0.78));
+        Audio.djump();
       } else {
         playerWeapon = p.type;
         throwAmmo = C.THROW_AMMO;
@@ -732,6 +907,30 @@ function updateSpikes() {
     if (rectsOverlap(player.bounds(), s.damageBounds())) {
       damagePlayer();
       return;
+    }
+  }
+}
+
+// ── Smoke bombs ────────────────────────────────────────────────────────────────
+function updateSmokeBombs(dt) {
+  for (const s of smokeBombs) s.update(dt);
+  smokeBombs = smokeBombs.filter(s => s.alive);
+}
+
+// ── Checkpoints ────────────────────────────────────────────────────────────────
+function updateCheckpoints() {
+  if (!player || !player.onGround) return;
+  const pcx = player.x + player.w / 2;
+  for (const cp of checkpoints) {
+    if (!cp.activated && Math.abs(pcx - cp.x) < 32) {
+      cp.activated = true;
+      for (let i = 0; i < 12; i++) {
+        const a = Math.PI + (Math.random() - 0.5) * 2;
+        particles.push(new Particle(cp.x, C.GROUND_Y - 60,
+          Math.cos(a)*50, Math.sin(a)*60 - 40, '#88ff88', 3 + Math.random()*3, 0.6, -80));
+      }
+      floatingTexts.push(new FloatingText(cp.x, C.GROUND_Y - 90, 'CHECKPOINT!', '#88ff88', 1.5));
+      Audio.djump();
     }
   }
 }
@@ -782,6 +981,8 @@ function update(dt) {
   updateBoss(dt);
   updatePickups(dt);
   updateSpikes();
+  updateSmokeBombs(dt);
+  updateCheckpoints();
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);

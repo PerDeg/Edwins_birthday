@@ -223,6 +223,48 @@ function draw(dt) {
     }
   }
 
+  // Checkpoints
+  for (const cp of checkpoints) {
+    if (cp.x + 30 < cam.x - 20 || cp.x > cam.x + C.W + 20) continue;
+    const bx = cp.x, gy = C.GROUND_Y;
+    // Pole
+    ctx.fillStyle = cp.activated ? '#c8a83c' : '#888888';
+    ctx.fillRect(bx - 2, gy - 80, 4, 80);
+    // Flag
+    const t = Date.now() * 0.005;
+    const wave = cp.activated ? Math.sin(t) * 6 : 0;
+    ctx.fillStyle = cp.activated ? '#22cc55' : '#555555';
+    ctx.beginPath();
+    ctx.moveTo(bx + 2, gy - 80);
+    ctx.lineTo(bx + 28 + wave, gy - 68);
+    ctx.lineTo(bx + 2, gy - 56);
+    ctx.closePath();
+    ctx.fill();
+    // Base
+    ctx.fillStyle = cp.activated ? '#c8a83c' : '#666666';
+    ctx.fillRect(bx - 6, gy - 6, 16, 6);
+  }
+
+  // Smoke bombs
+  for (const s of smokeBombs) {
+    if (!s.alive || s.x + s.r < cam.x - 20 || s.x - s.r > cam.x + C.W + 20) continue;
+    const fade = Math.min(1, s.timer / (C.SMOKE_DURATION * 0.5));
+    ctx.save();
+    // Outer cloud layers
+    for (let i = 3; i >= 1; i--) {
+      ctx.globalAlpha = fade * 0.18 / i;
+      ctx.fillStyle = '#99cc88';
+      ctx.beginPath();
+      ctx.arc(s.x + Math.sin(Date.now()*0.001*i)*8, s.y, s.r * (0.7 + i*0.12), 0, Math.PI*2);
+      ctx.fill();
+    }
+    // Core puff
+    ctx.globalAlpha = fade * 0.35;
+    ctx.fillStyle = '#aaddaa';
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   for (const l of ladders) {
     if (l.x + l.w < cam.x - 20 || l.x > cam.x + C.W + 20) continue;
     drawLadder(ctx, l);
@@ -274,6 +316,22 @@ function draw(dt) {
       ctx.fillStyle = '#ffdd00';
       ctx.fillText('?', e.x + e.w / 2, e.y - 14);
       ctx.restore();
+    }
+    // Shield grunt: draw shield on front face
+    if (e.type === 'shield-grunt' && !e.slipping) {
+      const sx = e.facing > 0 ? e.x + e.w - 1 : e.x - 9;
+      ctx.fillStyle = '#3366cc';
+      ctx.strokeStyle = '#88aaff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx + 4, e.y + 4);
+      ctx.lineTo(sx + 9, e.y + 4);
+      ctx.lineTo(sx + 9, e.y + e.h - 12);
+      ctx.lineTo(sx + 4, e.y + e.h - 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.lineWidth = 1;
     }
     if (e.slipping) {
       // Spin the grunt sideways while sliding
@@ -426,6 +484,24 @@ function draw(dt) {
       ctx.beginPath();
       ctx.ellipse(tx, cy, player.w * 1.1, player.h * 0.7, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }
+    // Grappling hook rope
+    if (player.hooked) {
+      const anchor = player.hooked;
+      const pcx = player.x + player.w / 2, pcy = player.y + player.h * 0.3;
+      ctx.save();
+      // Shadow rope
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(pcx + 1, pcy + 1); ctx.lineTo(anchor.x + 1, anchor.y + 1); ctx.stroke();
+      // Main rope
+      ctx.strokeStyle = '#c8a83c';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(pcx, pcy); ctx.lineTo(anchor.x, anchor.y); ctx.stroke();
+      // Anchor nail
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(anchor.x, anchor.y, 3.5, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
     if (player.hiding) {

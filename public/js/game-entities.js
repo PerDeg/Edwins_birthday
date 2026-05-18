@@ -264,6 +264,7 @@ class Player {
     this.alive = true;
     this.ambushWindow = 0;   // depleting arc timer while hiding near enemy
     this.ambushReady  = 0;   // grace period after exiting hiding
+    this.hooked       = null; // grapple anchor: { x, y, len } or null
   }
   get attackActive() {
     return this.attacking && this.attackTimer > C.ATTACK_DURATION * 0.4;
@@ -312,9 +313,18 @@ class Grunt {
     this.slipping   = false;
     this.slipTimer  = 0;
     this.slipRot    = 0;
+    this.hasAlerted = false;
   }
   canSeePlayer(player) {
     if (player.hiding) return false;
+    // Smoke blinds vision
+    if (typeof smokeBombs !== 'undefined') {
+      const pcx = player.x + player.w / 2, pcy = player.y + player.h / 2;
+      const ecx = this.x + this.w / 2,     ecy = this.y + this.h / 2;
+      for (const s of smokeBombs) {
+        if (s.alive && (s.contains(pcx, pcy) || s.contains(ecx, ecy))) return false;
+      }
+    }
     const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
     const dy = (player.y + player.h / 2) - (this.y + this.h / 2);
     if (dx * this.facing < 0) return false;          // player is behind guard
@@ -345,6 +355,10 @@ class Grunt {
         this.aiState = 'suspect';
         if (this.detectTimer >= C.DETECTION_TIME) {
           this.aiState = 'alert'; this.detectTimer = C.DETECTION_TIME;
+          if (!this.hasAlerted) {
+            this.hasAlerted = true;
+            if (typeof levelAlertCount !== 'undefined') levelAlertCount++;
+          }
         }
       } else {
         this.detectTimer = Math.max(0, this.detectTimer - dt * 1.6);
@@ -443,6 +457,20 @@ class Grunt {
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
 }
 
+// ── ShieldGrunt ───────────────────────────────────────────────────────────────
+class ShieldGrunt extends Grunt {
+  constructor(px, platform, speedMul) {
+    super(px, platform, speedMul);
+    this.type   = 'shield-grunt';
+    this.hp     = C.SHIELD_GRUNT_HP;
+    this.maxHp  = C.SHIELD_GRUNT_HP;
+  }
+  shieldBlocks(attackerCX) {
+    // Shield covers the front face — blocks if attacker is on the side the enemy faces
+    return (attackerCX - (this.x + this.w / 2)) * this.facing > 0;
+  }
+}
+
 class Archer {
   constructor(px, platform, speedMul, shootInterval) {
     this.x = px; this.y = platform.y - 48;
@@ -484,9 +512,16 @@ class Archer {
     this.animTimer += dt;
     if (this.animTimer > 0.14) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
 
-    // Only track and shoot when player is visible (not hidden, within vertical range)
+    // Only track and shoot when player is visible (not hidden, not smoked, within vertical range)
     const dy = Math.abs((player.y + player.h / 2) - (this.y + this.h / 2));
-    const canSee = !player.hiding && dy < C.DETECTION_HEIGHT;
+    let canSee = !player.hiding && dy < C.DETECTION_HEIGHT;
+    if (canSee && typeof smokeBombs !== 'undefined') {
+      const pcx = player.x + player.w / 2, pcy = player.y + player.h / 2;
+      const ecx = this.x + this.w / 2,     ecy = this.y + this.h / 2;
+      for (const s of smokeBombs) {
+        if (s.alive && (s.contains(pcx, pcy) || s.contains(ecx, ecy))) { canSee = false; break; }
+      }
+    }
 
     if (canSee) {
       this.lostPlayerTimer = 1.8;
@@ -594,6 +629,35 @@ function _enemySpikeCollision(e) {
   }
 }
 
+// ── Checkpoint flag ───────────────────────────────────────────────────────────
+class Checkpoint {
+  constructor(x) {
+    this.x         = x;
+    this.activated = false;
+    this.w         = 20;
+  }
+}
+
+// ── Smoke bomb ────────────────────────────────────────────────────────────────
+class SmokeBomb {
+  constructor(x, y) {
+    this.x     = x;
+    this.y     = y;
+    this.r     = 12;
+    this.maxR  = C.SMOKE_RANGE;
+    this.timer = C.SMOKE_DURATION;
+    this.alive = true;
+  }
+  update(dt) {
+    this.timer -= dt;
+    if (this.timer <= 0) { this.alive = false; return; }
+    if (this.r < this.maxR) this.r = Math.min(this.maxR, this.r + 220 * dt);
+  }
+  contains(cx, cy) {
+    return Math.hypot(cx - this.x, cy - this.y) < this.r;
+  }
+}
+
 // ── AABB collision ─────────────────────────────────────────────────────────
 function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x &&
@@ -666,6 +730,7 @@ class WeaponPickup {
   update(dt) { this.bobTimer += dt * 2.4; }
   draw(ctx) {
     if (this.type === 'heart') { this.drawHeart(ctx); return; }
+    if (this.type === 'smoke') { this.drawSmoke(ctx); return; }
 
     const by = Math.sin(this.bobTimer) * 4;
     const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
@@ -756,6 +821,27 @@ class WeaponPickup {
     ctx.restore();
   }
 
+  drawSmoke(ctx) {
+    const by = Math.sin(this.bobTimer) * 4;
+    const cx = this.x + this.w / 2, cy = this.y + this.h / 2 + by;
+    ctx.save();
+    // Glow ring
+    const glowR = 15 + Math.sin(this.bobTimer * 2) * 3;
+    ctx.globalAlpha = 0.20 + Math.sin(this.bobTimer * 2) * 0.08;
+    ctx.fillStyle = '#88cc88';
+    ctx.beginPath(); ctx.arc(cx, cy, glowR, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Puffs
+    const puffs = [[-5, 0, 8], [5, -3, 8], [0, -6, 7]];
+    puffs.forEach(([ox, oy, r]) => {
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#aaddaa';
+      ctx.beginPath(); ctx.arc(cx + ox, cy + oy, r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
 }
 
@@ -822,8 +908,8 @@ class Boss {
   constructor(x, y, platform, hp, type) {
     this.platform = platform;
     this.type     = type;   // 'samurai' | 'archer-boss' | 'demon'
-    this.w  = type === 'demon' ? 50 : type === 'samurai' ? 42 : 38;
-    this.h  = type === 'demon' ? 72 : type === 'samurai' ? 64 : 60;
+    this.w  = type === 'demon' ? 50 : type === 'samurai' ? 42 : type === 'ninja-duel' ? 30 : 38;
+    this.h  = type === 'demon' ? 72 : type === 'samurai' ? 64 : type === 'ninja-duel' ? 48 : 60;
     this.x  = x;
     this.y  = y;
     this.vx = 0; this.vy = 0;
@@ -893,6 +979,35 @@ class Boss {
 
   _act(player, shurikens) {
     const dist = Math.abs((player.x + player.w / 2) - (this.x + this.w / 2));
+    if (this.type === 'ninja-duel') {
+      const r = Math.random();
+      if (dist < 130) {
+        // Dash lunge at close range
+        this.vx = this.facing * 680;
+        this.aiState = 'charge';
+        this.aiTimer = 0.16;
+      } else if (r < 0.32 && this.onGround) {
+        // Jump and throw
+        this.vy = C.JUMP_V * 0.88;
+        this._shoot(player, shurikens, 1);
+        this.aiState = 'jump';
+        this.aiTimer = 0.85;
+      } else if (r < 0.62) {
+        // Approach
+        this.vx = this.facing * 170;
+        this.aiState = 'walk';
+        this.aiTimer = 0.5;
+      } else {
+        // Feint / pause
+        this.vx *= 0.5;
+        this.aiState = 'idle';
+        this.aiTimer = 0.28;
+      }
+      if (this.phase2 && this.onGround && dist > 200 && r > 0.7) {
+        this.vy = C.JUMP_V * 0.78;
+      }
+      return;
+    }
 
     if (this.type === 'samurai') {
       if (this.aiState === 'charge') {
@@ -1064,6 +1179,55 @@ function drawBoss(ctx, boss) {
     ctx.beginPath(); ctx.arc(-w*0.18, h*0.07, 5, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc( w*0.18, h*0.07, 5, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
+  }
+
+  if (type === 'ninja-duel') {
+    // Rival ninja — dark blue uniform, gold headband
+    const legSwing = (aiState === 'walk' || aiState === 'charge' || aiState === 'jump')
+      ? Math.sin(animFrame * Math.PI * 2.5) * 14 : 0;
+    const armSwing = -legSwing * 0.6;
+    const NAVY = '#1a1a6e', MED = '#22228a';
+    // Back leg
+    ctx.fillStyle = NAVY;
+    ctx.save(); ctx.translate(-4, h*0.55); ctx.rotate((-legSwing*Math.PI)/180);
+    ctx.fillRect(-4, 0, 8, h*0.48); ctx.restore();
+    // Front leg
+    ctx.save(); ctx.translate(4, h*0.55); ctx.rotate((legSwing*Math.PI)/180);
+    ctx.fillRect(-4, 0, 8, h*0.48); ctx.restore();
+    // Body
+    ctx.fillStyle = MED;
+    ctx.fillRect(-w*0.45, h*0.18, w*0.9, h*0.38);
+    // Arms
+    ctx.fillStyle = NAVY;
+    ctx.save(); ctx.translate(-w*0.38, h*0.24); ctx.rotate((armSwing*Math.PI)/180);
+    ctx.fillRect(-3.5, 0, 7, h*0.34); ctx.restore();
+    ctx.save(); ctx.translate(w*0.38, h*0.24);
+    ctx.rotate(aiState === 'charge' ? (-Math.PI/4 + 0.5) : (-armSwing*Math.PI)/180);
+    ctx.fillStyle = NAVY; ctx.fillRect(-3.5, 0, 7, h*0.34); ctx.restore();
+    // Head
+    ctx.fillStyle = MED;
+    ctx.beginPath(); ctx.ellipse(0, h*0.10, w*0.45, h*0.25, 0, 0, Math.PI*2); ctx.fill();
+    // Eye slit
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(w*0.04, h*0.05, w*0.32, 3);
+    // Gold headband
+    ctx.fillStyle = '#c8a83c';
+    ctx.fillRect(-w*0.48, h*-0.01, w*0.96, 5);
+    // Band tail
+    ctx.fillStyle = '#c8a83c';
+    ctx.beginPath();
+    ctx.moveTo(w*0.38, h*0.03);
+    ctx.lineTo(w*0.54 + Math.sin(animFrame*8)*3, h*0.20);
+    ctx.lineTo(w*0.28, h*0.20);
+    ctx.closePath(); ctx.fill();
+    // Phase 2: red energy aura outline
+    if (boss.phase2) {
+      ctx.save();
+      ctx.globalAlpha = 0.55 + Math.sin(Date.now()*0.01)*0.35;
+      ctx.strokeStyle = '#ff2020'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(0, h*0.50, w*0.65, h*0.62, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // ── Shield overlay (all boss types) ────────────────────────────────────────
