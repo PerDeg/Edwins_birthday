@@ -285,6 +285,13 @@ class Player {
   bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
 }
 
+function _inSmoke(cx, cy) {
+  for (const s of smokeBombs) {
+    if (s.alive && s.contains(cx, cy)) return true;
+  }
+  return false;
+}
+
 class Grunt {
   constructor(px, platform, speedMul) {
     this.x = px; this.y = platform.y - 48;
@@ -317,14 +324,8 @@ class Grunt {
   }
   canSeePlayer(player) {
     if (player.hiding) return false;
-    // Smoke blinds vision
-    if (typeof smokeBombs !== 'undefined') {
-      const pcx = player.x + player.w / 2, pcy = player.y + player.h / 2;
-      const ecx = this.x + this.w / 2,     ecy = this.y + this.h / 2;
-      for (const s of smokeBombs) {
-        if (s.alive && (s.contains(pcx, pcy) || s.contains(ecx, ecy))) return false;
-      }
-    }
+    const pcx = player.x + player.w / 2, pcy = player.y + player.h / 2;
+    if (_inSmoke(pcx, pcy) || _inSmoke(this.x + this.w / 2, this.y + this.h / 2)) return false;
     const dx = (player.x + player.w / 2) - (this.x + this.w / 2);
     const dy = (player.y + player.h / 2) - (this.y + this.h / 2);
     if (dx * this.facing < 0) return false;          // player is behind guard
@@ -514,14 +515,9 @@ class Archer {
 
     // Only track and shoot when player is visible (not hidden, not smoked, within vertical range)
     const dy = Math.abs((player.y + player.h / 2) - (this.y + this.h / 2));
-    let canSee = !player.hiding && dy < C.DETECTION_HEIGHT;
-    if (canSee && typeof smokeBombs !== 'undefined') {
-      const pcx = player.x + player.w / 2, pcy = player.y + player.h / 2;
-      const ecx = this.x + this.w / 2,     ecy = this.y + this.h / 2;
-      for (const s of smokeBombs) {
-        if (s.alive && (s.contains(pcx, pcy) || s.contains(ecx, ecy))) { canSee = false; break; }
-      }
-    }
+    const canSee = !player.hiding && dy < C.DETECTION_HEIGHT &&
+      !_inSmoke(player.x + player.w / 2, player.y + player.h / 2) &&
+      !_inSmoke(this.x + this.w / 2, this.y + this.h / 2);
 
     if (canSee) {
       this.lostPlayerTimer = 1.8;
@@ -634,7 +630,6 @@ class Checkpoint {
   constructor(x) {
     this.x         = x;
     this.activated = false;
-    this.w         = 20;
   }
 }
 
@@ -671,6 +666,7 @@ class Coin {
     this.type = type;   // 'gold' | 'silver' | 'copper'
     this.w = 20; this.h = 20;
     this.alive = true;
+    this.vx = 0; this.vy = 0;
     this.bobTimer  = Math.random() * Math.PI * 2;
     this.animFrame = Math.random() * 8;  // stagger frame start
     this.animTimer = 0;

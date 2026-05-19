@@ -307,7 +307,7 @@ function draw(dt) {
       continue;
     }
     if (!e.alive) continue;
-    if (e.type === 'grunt') drawDetectionCone(ctx, e);
+    if (e instanceof Grunt) drawDetectionCone(ctx, e);
     else if (e.type === 'archer' && e.lostPlayerTimer > 0) {
       const alpha = Math.min(1, e.lostPlayerTimer);
       ctx.save();

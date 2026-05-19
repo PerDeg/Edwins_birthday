@@ -196,7 +196,7 @@ function updatePlayer(dt) {
           triggerShake(9, 0.22);
           Audio.hit();
           if (e.hp <= 0) killEnemy(e);
-          else if (e.type === 'grunt' || e.type === 'shield-grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
+          else if (e instanceof Grunt) { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
       if (boss && boss.alive && !p.dashHitSet.has(boss) && rectsOverlap(p.bounds(), boss.bounds())) {
@@ -466,7 +466,7 @@ function damagePlayer() {
   emitHit(particles, player.x + player.w / 2, player.y + player.h / 2);
   Audio.hit();
   if (playerHp <= 0) {
-    const activeCP = [...checkpoints].reverse().find(c => c.activated);
+    const activeCP = checkpoints.findLast(c => c.activated);
     if (activeCP) {
       playerHp       = 40;
       player.x       = activeCP.x - player.w / 2;
@@ -574,8 +574,8 @@ function updateEnemies(dt) {
     // Skip enemies far off-screen that can't possibly interact with the player.
     // Detection range is 230px so a 450px margin is safe. Always update alert grunts.
     const nearViewport = e.x + e.w > cam.x - 450 && e.x < cam.x + C.W + 450;
-    if (!nearViewport && (e.type !== 'grunt' && e.type !== 'shield-grunt' || e.aiState === 'patrol')) continue;
-    if (e.type === 'grunt' || e.type === 'shield-grunt') {
+    if (!nearViewport && (!(e instanceof Grunt) || e.aiState === 'patrol')) continue;
+    if (e instanceof Grunt) {
       e.updateStealth(dt, player);
       e.update(dt, player);
     } else {
@@ -597,7 +597,7 @@ function updateEnemies(dt) {
         player.jumpsLeft = Math.max(player.jumpsLeft, 1);
         e.hp--;
         e.hitFlash = 0.18;
-        if ((e.type === 'grunt' || e.type === 'shield-grunt') && !e.slipping) {
+        if (e instanceof Grunt && !e.slipping) {
           e.slipping = true; e.slipTimer = 1.6; e.slipRot = 0;
           e.vx = (Math.random() > 0.5 ? 1 : -1) * 100; e.vy = 0;
         }
@@ -630,7 +630,7 @@ function updateEnemies(dt) {
           player.ambushReady = 0;
           killEnemy(e, true);
           floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 40, 'MÖRDARHOPP!', '#ffe040', 1.9));
-        } else if ((e.type === 'grunt' || e.type === 'shield-grunt') && e.aiState !== 'alert' && e.isBehind(player)) {
+        } else if (e instanceof Grunt && e.aiState !== 'alert' && e.isBehind(player)) {
           killEnemy(e, true);
         } else if (e.type === 'shield-grunt' && e.shieldBlocks(player.x + player.w / 2)) {
           // Shield blocks the hit — knock player back
@@ -639,7 +639,7 @@ function updateEnemies(dt) {
           player.attacking = false;
           triggerShake(5, 0.18);
           emitHit(particles, hb.x + hb.w / 2, hb.y + hb.h / 2);
-          Audio.shieldBlock ? Audio.shieldBlock() : Audio.hit();
+          Audio.shieldBlock();
           floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 32, 'BLOCKAD!', '#88aaff', 1.2));
           e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME;
         } else {
@@ -647,13 +647,12 @@ function updateEnemies(dt) {
           e.hitFlash = 0.12;
           emitHit(particles, e.x + e.w/2, e.y + e.h/2);
           if (e.hp <= 0) killEnemy(e);
-          else if (e.type === 'grunt' || e.type === 'shield-grunt') { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
+          else if (e instanceof Grunt) { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
     }
     // Alert grunts and archers deal contact damage (stomps are immune to retaliation)
-    const dealsDmg = !stomped && (e.type === 'archer' ||
-      ((e.type === 'grunt' || e.type === 'shield-grunt') && e.aiState === 'alert'));
+    const dealsDmg = !stomped && (e.type === 'archer' || (e instanceof Grunt && e.aiState === 'alert'));
     if (dealsDmg && wasOverlapping && player.invincible <= 0) damagePlayer();
   }
   enemies = enemies.filter(e => e.alive || (e.dying && e.dyingTimer > 0));
@@ -696,7 +695,7 @@ function killEnemy(e, stealth = false) {
   // Normal kills alert nearby guards (stealth kills are silent)
   if (!stealth) {
     for (const other of enemies) {
-      if (!other.alive || other === e || (other.type !== 'grunt' && other.type !== 'shield-grunt')) continue;
+      if (!other.alive || other === e || !(other instanceof Grunt)) continue;
       if (Math.hypot(other.x - e.x, other.y - e.y) < 260) {
         other.aiState = 'alert'; other.detectTimer = C.DETECTION_TIME;
       }
@@ -825,7 +824,7 @@ function updatePlayerShurikens(dt) {
         emitBloodSplat(particles, e.x + e.w / 2, e.y + e.h * 0.4, s.vx > 0 ? 1 : -1);
         if (e.hp <= 0) {
           killEnemy(e);
-        } else if (e.type === 'grunt' || e.type === 'shield-grunt') {
+        } else if (e instanceof Grunt) {
           e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME;
         }
         if (!s.piercing) { s.alive = false; break; }
@@ -842,8 +841,7 @@ function updateCoins(dt) {
   const mpx = player.x + player.w / 2, mpy = player.y + player.h / 2;
   for (const c of coins) {
     if (!c.alive) continue;
-    // Physics for dropped coins before they settle
-    if (c.vy !== undefined && (Math.abs(c.vx) > 1 || c.y < C.GROUND_Y - c.h - 2)) {
+    if (Math.abs(c.vx) > 1 || c.y < C.GROUND_Y - c.h - 2) {
       c.vy += C.GRAVITY * 0.6 * dt;
       c.x  += c.vx * dt;
       c.y  += c.vy * dt;
@@ -921,6 +919,7 @@ function updateSpikes() {
 
 // ── Smoke bombs ────────────────────────────────────────────────────────────────
 function updateSmokeBombs(dt) {
+  if (!smokeBombs.length) return;
   for (const s of smokeBombs) s.update(dt);
   smokeBombs = smokeBombs.filter(s => s.alive);
 }
