@@ -25,7 +25,7 @@ const HUD = (() => {
   let comboPop = 1, prevCombo = 1;
 
   function draw(ctx, state) {
-    const { playerHp, score, level, combo, boss, playerWeapon, gemPower, camX, levelWidth, throwAmmo } = state;
+    const { playerHp, score, level, combo, boss, playerWeapon, gemPower, camX, levelWidth, throwAmmo, survivalWave, survivalMode } = state;
 
     // ── Dynamic HP bar ──
     const hpFrac = Math.max(0, Math.min(1, (playerHp || 0) / C.PLAYER_HP));
@@ -51,8 +51,28 @@ const HUD = (() => {
     ctx.fillStyle = '#e63946';
     ctx.fillText('♥', bx - 2, by + bh);
 
+    // ── Survival wave counter ──
+    if (survivalMode && survivalWave > 0) {
+      ctx.save();
+      ctx.font = 'bold 18px system-ui'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffe040';
+      ctx.fillText(`VÅNING ${survivalWave}`, C.W / 2, 22);
+      ctx.restore();
+    }
+
+    // ── Kill streak indicator ──
+    if (typeof streakKills !== 'undefined' && streakKills >= 2) {
+      ctx.save();
+      ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'right';
+      const streakCol = streakKills >= C.STREAK_TRIPLE ? '#ff8c35' : streakKills >= C.STREAK_SMOKE ? '#88cc88' : '#ffffff';
+      ctx.globalAlpha = 0.8 + Math.sin(Date.now() * 0.01) * 0.2;
+      ctx.fillStyle = streakCol;
+      ctx.fillText(`\u{1F525} ${streakKills} ELDSVIT`, C.W - 14, C.H - 36);
+      ctx.globalAlpha = 1; ctx.restore();
+    }
+
     // ── Stealth run indicator ──
-    if (typeof levelAlertCount !== 'undefined' && levelAlertCount === 0) {
+    if (!survivalMode && typeof levelAlertCount !== 'undefined' && levelAlertCount === 0) {
       ctx.save();
       ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
       ctx.globalAlpha = 0.55 + Math.sin(Date.now() * 0.004) * 0.25;
@@ -77,11 +97,13 @@ const HUD = (() => {
     ctx.fillStyle = C.COL_GOLD;
     ctx.fillText(score.toLocaleString('sv'), C.W / 2, 30);
 
-    // ── Level label ──
-    ctx.font = '13px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(200,168,60,0.7)';
-    ctx.fillText(`NIVÅ ${level}`, C.W - 14, 22);
+    // ── Level label (hide in survival — wave counter replaces it) ──
+    if (!survivalMode) {
+      ctx.font = '13px system-ui';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(200,168,60,0.7)';
+      ctx.fillText(`NIVÅ ${level}`, C.W - 14, 22);
+    }
 
     // ── Combo pop ──
     if (combo !== prevCombo && combo > 1) { comboPop = 1.85; prevCombo = combo; }

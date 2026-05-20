@@ -904,8 +904,9 @@ class Boss {
   constructor(x, y, platform, hp, type) {
     this.platform = platform;
     this.type     = type;   // 'samurai' | 'archer-boss' | 'demon'
-    this.w  = type === 'demon' ? 50 : type === 'samurai' ? 42 : type === 'ninja-duel' ? 30 : 38;
-    this.h  = type === 'demon' ? 72 : type === 'samurai' ? 64 : type === 'ninja-duel' ? 48 : 60;
+    const _ninja = type === 'ninja-duel' || type === 'edwin';
+    this.w  = type === 'demon' ? 50 : type === 'samurai' ? 42 : _ninja ? 30 : 38;
+    this.h  = type === 'demon' ? 72 : type === 'samurai' ? 64 : _ninja ? 48 : 60;
     this.x  = x;
     this.y  = y;
     this.vx = 0; this.vy = 0;
@@ -921,13 +922,44 @@ class Boss {
     this.seenByPlayer = false;
     // Shield: cycles OFF→ON→OFF. Starts in OFF so fight opens with an attack window.
     this.shieldActive  = false;
-    this.shieldTimer   = 0;     // position in the cycle
+    this.shieldTimer   = 0;
     this.hitFlash = 0;
     this.phase2Announced = false;
+    // Edwin-specific
+    this.blinkTimer     = 8 + Math.random() * 4;
+    this.blinking       = false;
+    this.blinkDur       = 0;
+    this.blinkX         = 0;
+    this.summonedGrunts = false;
   }
   get phase2() { return this.hp <= Math.ceil(this.maxHp / 2); }
 
   update(dt, player, enemyShurikens, playerShurikens) {
+    // Edwin blink: briefly vanishes and repositions
+    if (this.type === 'edwin') {
+      if (this.blinking) {
+        this.blinkDur -= dt;
+        this.invincible = Math.max(this.invincible, this.blinkDur + 0.1);
+        if (this.blinkDur <= 0) {
+          this.blinking = false;
+          this.x  = this.blinkX;
+          this.y  = this.platform.y - this.h;
+          this.vy = 0; this.vx = 0;
+        }
+        return;
+      }
+      this.blinkTimer -= dt;
+      if (this.blinkTimer <= 0) {
+        this.blinking  = true;
+        this.blinkDur  = 0.75;
+        this.blinkTimer = (this.phase2 ? 5 : 9) + Math.random() * 3;
+        const p = this.platform;
+        this.blinkX = this.x > (p.x + p.w / 2)
+          ? p.x + 30
+          : p.x + p.w - 30 - this.w;
+      }
+    }
+
     this.facing = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
     this.animTimer += dt;
     if (this.animTimer > 0.12) { this.animFrame = (this.animFrame + 1) % 8; this.animTimer = 0; }
@@ -975,6 +1007,23 @@ class Boss {
 
   _act(player, shurikens) {
     const dist = Math.abs((player.x + player.w / 2) - (this.x + this.w / 2));
+    if (this.type === 'edwin') {
+      const r = Math.random();
+      if (dist < 140) {
+        this.vx = this.facing * 800; this.aiState = 'charge'; this.aiTimer = 0.13;
+      } else if (r < 0.28 && this.onGround) {
+        this.vy = C.JUMP_V * 0.92;
+        this._shoot(player, shurikens, this.phase2 ? 3 : 1);
+        this.aiState = 'jump'; this.aiTimer = 0.9;
+      } else if (r < 0.60) {
+        this.vx = this.facing * 200; this.aiState = 'walk'; this.aiTimer = 0.5;
+      } else {
+        this.vx *= 0.2; this.aiState = 'idle'; this.aiTimer = 0.22;
+      }
+      if (this.phase2 && this.onGround && r > 0.75) this.vy = C.JUMP_V * 0.80;
+      return;
+    }
+
     if (this.type === 'ninja-duel') {
       const r = Math.random();
       if (dist < 130) {
@@ -1224,6 +1273,52 @@ function drawBoss(ctx, boss) {
       ctx.beginPath(); ctx.ellipse(0, h*0.50, w*0.65, h*0.62, 0, 0, Math.PI*2); ctx.stroke();
       ctx.restore();
     }
+  }
+
+  if (type === 'edwin') {
+    const blinkAlpha = boss.blinking
+      ? (0.15 + Math.sin(Date.now() * 0.04) * 0.12)
+      : 1;
+    ctx.globalAlpha = blinkAlpha;
+
+    const legSwing = (aiState === 'walk' || aiState === 'charge' || aiState === 'jump')
+      ? Math.sin(animFrame * Math.PI * 2.5) * 14 : 0;
+    const armSwing = -legSwing * 0.6;
+    const CREAM = '#f0e8d0', GOLD = '#ffd700';
+
+    ctx.fillStyle = CREAM;
+    ctx.save(); ctx.translate(-4, h*0.55); ctx.rotate((-legSwing*Math.PI)/180);
+    ctx.fillRect(-4, 0, 8, h*0.48); ctx.restore();
+    ctx.save(); ctx.translate(4, h*0.55); ctx.rotate((legSwing*Math.PI)/180);
+    ctx.fillRect(-4, 0, 8, h*0.48); ctx.restore();
+    ctx.fillRect(-w*0.45, h*0.18, w*0.9, h*0.38);
+    ctx.save(); ctx.translate(-w*0.38, h*0.24); ctx.rotate((armSwing*Math.PI)/180);
+    ctx.fillRect(-3.5, 0, 7, h*0.34); ctx.restore();
+    ctx.save(); ctx.translate(w*0.38, h*0.24);
+    ctx.rotate(aiState === 'charge' ? -Math.PI/3 : (-armSwing*Math.PI)/180);
+    ctx.fillRect(-3.5, 0, 7, h*0.34); ctx.restore();
+    ctx.beginPath(); ctx.ellipse(0, h*0.10, w*0.45, h*0.25, 0, 0, Math.PI*2); ctx.fill();
+    // Red eye slit — Edwin's signature
+    ctx.fillStyle = 'rgba(255,30,30,0.9)';
+    ctx.fillRect(w*0.04, h*0.05, w*0.32, 3);
+    // Gold headband
+    ctx.fillStyle = GOLD;
+    ctx.fillRect(-w*0.48, h*-0.01, w*0.96, 6);
+    ctx.beginPath();
+    ctx.moveTo(w*0.38, h*0.04);
+    ctx.lineTo(w*0.56 + Math.sin(animFrame*8)*4, h*0.22);
+    ctx.lineTo(w*0.28, h*0.22);
+    ctx.closePath(); ctx.fill();
+    if (boss.phase2) {
+      ctx.save();
+      const pulse = 0.45 + Math.sin(Date.now()*0.009)*0.35;
+      ctx.globalAlpha = blinkAlpha * pulse;
+      ctx.strokeStyle = GOLD; ctx.lineWidth = 3;
+      ctx.shadowColor = GOLD; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.ellipse(0, h*0.50, w*0.72, h*0.68, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   // ── Shield overlay (all boss types) ────────────────────────────────────────

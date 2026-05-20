@@ -99,6 +99,10 @@ const C = {
   // Shield grunt
   SHIELD_GRUNT_HP:     4,
 
+  // Kill streak rewards
+  STREAK_SMOKE:        3,   // consecutive kills for free smoke bomb
+  STREAK_TRIPLE:       5,   // consecutive kills for free triple shuriken
+
   // Fixed level definitions — identical every run for fair score comparison
   LEVEL_DATA: [
     {
@@ -359,5 +363,117 @@ const C = {
         { x: 5100, y: 490, w: 80, axis: 'x', range: 70, speed: 70, phase: 0.8 },
       ],
     },
+
+    // ── LEVEL 4: EDWINS SLOTT ────────────────────────────────────────────────
+    {
+      name: 'EDWINS SLOTT',
+      bgTheme: 1,
+      width: 4200,
+      enemySpeedBase: 100,
+      archerInterval: 2.0,
+      platforms: [
+        { x: 150,  y: 380, w: 150 },   // 0
+        { x: 370,  y: 290, w: 130 },   // 1
+        { x: 555,  y: 400, w: 120 },   // 2
+        { x: 730,  y: 250, w: 160 },   // 3
+        { x: 960,  y: 375, w: 140 },   // 4
+        { x: 1155, y: 265, w: 140 },   // 5
+        { x: 1380, y: 385, w: 120 },   // 6
+        { x: 1555, y: 280, w: 140 },   // 7
+        { x: 1790, y: 390, w: 150 },   // 8
+        { x: 2010, y: 270, w: 150 },   // 9
+        { x: 2240, y: 385, w: 130 },   // 10
+        { x: 2450, y: 260, w: 150 },   // 11
+        { x: 2690, y: 375, w: 140 },   // 12
+        { x: 2915, y: 260, w: 150 },   // 13
+        { x: 3155, y: 380, w: 130 },   // 14
+        { x: 3390, y: 270, w: 160 },   // 15
+        { x: 3660, y: 310, w: 400 },   // 16 — Edwin's throne room
+      ],
+      enemies: [
+        { type: 'grunt',        platIdx: 0 },
+        { type: 'archer',       platIdx: 1 },
+        { type: 'shield-grunt', platIdx: 2 },
+        { type: 'grunt',        platIdx: 3 },
+        { type: 'archer',       platIdx: 5 },
+        { type: 'grunt',        platIdx: 6 },
+        { type: 'shield-grunt', platIdx: 7 },
+        { type: 'archer',       platIdx: 8 },
+        { type: 'grunt',        platIdx: 9 },
+        { type: 'shield-grunt', platIdx: 10 },
+        { type: 'archer',       platIdx: 11 },
+        { type: 'grunt',        platIdx: 12 },
+        { type: 'archer',       platIdx: 13 },
+        { type: 'shield-grunt', platIdx: 14 },
+        { type: 'grunt',        platIdx: 15 },
+      ],
+      coins: [],
+      hidingSpots: [
+        { type: 'barrel', x: 165,  y: 346 },
+        { type: 'shadow', x: 300,  y: 600 },
+        { type: 'barrel', x: 570,  y: 366 },
+        { type: 'shadow', x: 725,  y: 600 },
+        { type: 'barrel', x: 1170, y: 231 },
+        { type: 'shadow', x: 1395, y: 600 },
+        { type: 'barrel', x: 1570, y: 246 },
+        { type: 'barrel', x: 2025, y: 236 },
+        { type: 'shadow', x: 2255, y: 600 },
+        { type: 'barrel', x: 2465, y: 226 },
+        { type: 'barrel', x: 2930, y: 226 },
+        { type: 'shadow', x: 3170, y: 600 },
+      ],
+      pickups: [
+        { type: 'smoke',    x:  570, y: 366 },
+        { type: 'shuriken', x:  975, y: 339 },
+        { type: 'heart',    x: 2015, y: 234 },
+        { type: 'triple',   x: 2455, y: 224 },
+        { type: 'smoke',    x: 3400, y: 234 },
+      ],
+      checkpoints: [{ x: 2130 }],
+      groundEnemies: [
+        { x: 285,  range: 180 },
+        { x: 545,  range: 180 },
+        { x: 855,  range: 200 },
+        { x: 1270, range: 180 },
+        { x: 1690, range: 200 },
+        { x: 2120, range: 180 },
+        { x: 2560, range: 200 },
+        { x: 3035, range: 180 },
+        { x: 3490, range: 200 },
+      ],
+      boss: { x: 3820, y: 262, hp: 14, type: 'edwin' },
+      movingPlatforms: [
+        { x: 840,  y: 490, w: 85, axis: 'x', range: 90, speed: 65 },
+        { x: 2165, y: 490, w: 80, axis: 'y', range: 80, speed: 60, phase: 0.4 },
+        { x: 3510, y: 490, w: 80, axis: 'x', range: 95, speed: 72, phase: 0.6 },
+      ],
+    },
+  ],
+};
+
+// ── Upgrade pool ───────────────────────────────────────────────────────────────
+const UPGRADE_POOL = [
+  { id: 'heal',         name: 'HELANDE',       desc: '+25 HP direkt',              icon: '\u{1F49A}' },
+  { id: 'ammo_plus',    name: 'EXTRA AMMO',    desc: '+5 kastavapen-ammo',         icon: '✶'     },
+  { id: 'coin_double',  name: 'GULDIGA',       desc: 'Mynt dubbelt värda',   icon: '\u{1FA99}'  },
+  { id: 'dash_quick',   name: 'SNABB DASH',    desc: 'Halv dash-nedkylning',       icon: '⚡'     },
+  { id: 'smoke_death',  name: 'DÖDSBOMB', desc: 'Rökbomb vid döden', icon: '\u{1F4A8}' },
+  { id: 'grapple_long', name: 'LÅNG KROK',desc: '+60% krokräckvidd',    icon: '\u{1FA9D}'  },
+  { id: 'stealth_jump', name: 'SKUGGHOP',      desc: 'Stealth-kill ger hopp',      icon: '\u{1F977}'  },
+  { id: 'dash_deadly',  name: 'DÖDSDASH', desc: 'Dash dödar direkt',     icon: '\u{1F525}'  },
+  { id: 'wall_boost',   name: 'VÄGGHOPPARE', desc: 'Starkare vägghopp', icon: '⬆'     },
+  { id: 'hp_max',       name: 'PANSARSKJORTA', desc: '+20 max-HP',                icon: '\u{1F6E1}'  },
+  { id: 'pierce_all',   name: 'GENOMBORRAR',   desc: 'Shurikens piercar igenom',  icon: '⭐'     },
+  { id: 'quake',        name: 'JORDSKALV',     desc: '2× markslagsräckvidd', icon: '\u{1F4A5}' },
+];
+
+// ── Survival arena (fixed 1200×675, no scrolling) ──────────────────────────────
+const SURVIVAL_ARENA = {
+  platforms: [
+    { x:  80, y: 470, w: 200 },
+    { x: 390, y: 400, w: 170 },
+    { x: 640, y: 470, w: 170 },
+    { x: 920, y: 400, w: 200 },
+    { x: 450, y: 305, w: 280 },
   ],
 };

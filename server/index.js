@@ -113,9 +113,11 @@ app.delete('/api/admin/levels/:idx', requireAdmin, async (req, res) => {
 
 // GET /api/scores — top 10 leaderboard
 app.get('/api/scores', async (req, res) => {
+  const diff = ['ninja', 'survival'].includes(req.query.difficulty) ? req.query.difficulty : 'ninja';
   try {
     const result = await pool.query(
-      'SELECT name, score, difficulty, level, kills, created_at FROM scores ORDER BY score DESC, created_at ASC LIMIT 10'
+      'SELECT name, score, difficulty, level, kills, created_at FROM scores WHERE difficulty = $1 ORDER BY score DESC, created_at ASC LIMIT 10',
+      [diff]
     );
     res.json(result.rows);
   } catch (err) {
@@ -136,9 +138,10 @@ app.post('/api/scores', async (req, res) => {
   const kills = Math.max(0, parseInt(req.body.kills, 10) || 0);
 
   try {
+    const difficulty = ['ninja', 'survival'].includes(req.body.difficulty) ? req.body.difficulty : 'ninja';
     await pool.query(
       'INSERT INTO scores (name, score, difficulty, level, kills) VALUES ($1, $2, $3, $4, $5)',
-      [name, score, 'ninja', level, kills]
+      [name, score, difficulty, level, kills]
     );
     const rankResult = await pool.query(
       'SELECT COUNT(*) FROM scores WHERE score >= $1',

@@ -23,6 +23,11 @@ function initGame() {
   throwCooldown    = 0;
   throwAmmo        = 0;
   playerHp         = C.PLAYER_HP;
+  playerMaxHp      = C.PLAYER_HP;
+  playerUpgrades   = {};
+  playerBonusAmmo  = 0;
+  streakKills      = 0;
+  survivalMode     = false;
   ammoDisplayTimer = 0;
   levelTimer       = 0;
   levelKills       = 0;
@@ -173,6 +178,25 @@ function advanceNextLevel() {
   if (next >= C.LEVEL_DATA.length) {
     gameState = STATE.VICTORY;
   } else {
-    advanceToLevel(next);
+    // Show upgrade pick between levels
+    _nextLevelIdx   = next;
+    upgradeChoices  = _pickUpgrades(3);
+    gameState = STATE.UPGRADE_PICK;
   }
+}
+
+function _pickUpgrades(count) {
+  const pool = UPGRADE_POOL.filter(u => u.id !== 'heal' || playerHp < playerMaxHp);
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+function selectUpgrade(id) {
+  switch (id) {
+    case 'heal':         playerHp = Math.min(playerMaxHp, playerHp + 25); break;
+    case 'ammo_plus':    playerBonusAmmo += 5; break;
+    case 'hp_max':       playerMaxHp = Math.min(150, playerMaxHp + 20); playerHp = Math.min(playerMaxHp, playerHp + 20); break;
+    default:             playerUpgrades[id] = true; break;
+  }
+  advanceToLevel(_nextLevelIdx);
 }

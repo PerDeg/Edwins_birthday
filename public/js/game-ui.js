@@ -61,6 +61,10 @@ const UI = (() => {
       ctx.fillText('Inga poäng ännu — bli den första!', C.W/2, 220);
     }
 
+    // Survival button
+    const survHov = mouse && inBtn(mouse, C.W/2, C.H - 80, 220, 46);
+    button(ctx, '\u{1F30A} SURVIVAL', C.W/2, C.H - 80, 220, 46, survHov);
+
     // Controls hint
     ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.38)';
     ctx.textAlign = 'center';
@@ -238,6 +242,79 @@ const UI = (() => {
     return { hoverBack };
   }
 
+  // ── UPGRADE PICK ──────────────────────────────────────────────────────────
+  function drawUpgradePick(ctx, dt, choices, mouse) {
+    overlay(ctx, 0.88);
+    ctx.textAlign = 'center';
+    ctx.shadowColor = C.COL_GOLD; ctx.shadowBlur = 16;
+    ctx.font = 'bold 36px system-ui'; ctx.fillStyle = C.COL_GOLD;
+    ctx.fillText('VÄLJ EN UPPGRADERING', C.W/2, 88);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+    ctx.font = '16px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.65)';
+    ctx.fillText('Klicka på ett kort', C.W/2, 118);
+
+    const cardW = 200, cardH = 270, cy = C.H/2 + 30;
+    const xs = [C.W/2 - 240, C.W/2, C.W/2 + 240];
+
+    choices.forEach((up, i) => {
+      const cx = xs[i];
+      const hov = mouse && inBtn(mouse, cx, cy, cardW, cardH);
+      ctx.save();
+      if (hov) ctx.scale(1 + 0.02 * (Math.sin(Date.now()*0.006) * 0.5 + 0.5), 1);
+
+      ctx.fillStyle   = hov ? 'rgba(200,168,60,0.22)' : 'rgba(255,255,255,0.06)';
+      ctx.strokeStyle = hov ? C.COL_GOLD : 'rgba(200,168,60,0.38)';
+      ctx.lineWidth   = hov ? 2 : 1.5;
+      ctx.beginPath(); ctx.roundRect(cx - cardW/2, cy - cardH/2, cardW, cardH, 8);
+      ctx.fill(); ctx.stroke();
+
+      ctx.font = '48px system-ui'; ctx.fillStyle = '#fff';
+      ctx.fillText(up.icon, cx, cy - 72);
+      ctx.font = 'bold 15px system-ui'; ctx.fillStyle = hov ? C.COL_GOLD : '#fff';
+      ctx.fillText(up.name, cx, cy - 22);
+      ctx.font = '13px system-ui'; ctx.fillStyle = 'rgba(220,220,220,0.85)';
+      const words = up.desc.split(' ');
+      let line = '', lineY = cy + 12;
+      words.forEach(w => {
+        const test = line ? line + ' ' + w : w;
+        if (ctx.measureText(test).width > cardW - 20) { ctx.fillText(line, cx, lineY); line = w; lineY += 20; }
+        else line = test;
+      });
+      if (line) ctx.fillText(line, cx, lineY);
+      ctx.restore();
+    });
+    ctx.textAlign = 'left';
+  }
+
+  // ── SURVIVAL OVER ─────────────────────────────────────────────────────────
+  function drawSurvivalOver(ctx, score, wave, kills, board, mouse) {
+    overlay(ctx, 0.88);
+    ctx.textAlign = 'center';
+    ctx.shadowColor = C.COL_RED; ctx.shadowBlur = 20;
+    ctx.font = 'bold 48px system-ui'; ctx.fillStyle = C.COL_RED;
+    ctx.fillText('SURVIVAL OVER', C.W/2, C.H/2 - 120);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+    ctx.font = 'bold 24px system-ui'; ctx.fillStyle = C.COL_GOLD;
+    ctx.fillText(`Poäng: ${score.toLocaleString('sv')}`, C.W/2, C.H/2 - 70);
+    ctx.font = '16px system-ui'; ctx.fillStyle = '#ccc';
+    ctx.fillText(`Våning ${wave}  ·  ${kills} fiender besegrade`, C.W/2, C.H/2 - 42);
+
+    // Top 5 survival board inline
+    if (board && board.length) {
+      ctx.font = 'bold 12px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.6)';
+      ctx.fillText('— SURVIVAL TOPPLISTA —', C.W/2, C.H/2 - 8);
+      board.slice(0, 5).forEach((r, i) => {
+        ctx.font = '13px system-ui'; ctx.fillStyle = i === 0 ? C.COL_GOLD : '#ccc';
+        ctx.fillText(`${i+1}. ${r.name}  —  ${Number(r.score).toLocaleString('sv')}`, C.W/2, C.H/2 + 18 + i*22);
+      });
+    }
+
+    button(ctx, 'SKICKA IN POÄNG', C.W/2, C.H/2 + 70, 230, 50, mouse && inBtn(mouse, C.W/2, C.H/2+70, 230, 50));
+    button(ctx, 'TILLBAKA',         C.W/2, C.H/2 + 134, 180, 42, mouse && inBtn(mouse, C.W/2, C.H/2+134, 180, 42));
+    ctx.textAlign = 'left';
+  }
+
   // ── Hit flash ─────────────────────────────────────────────────────────────
   function drawHitFlash(ctx, intensity) {
     if (intensity <= 0) return;
@@ -248,6 +325,7 @@ const UI = (() => {
   return {
     drawMenu, drawGameOver, drawScoreSubmit, drawLeaderboard,
     drawHitFlash, drawLevelUp, drawLevelComplete, drawVictory,
+    drawUpgradePick, drawSurvivalOver,
     triggerLevelUp, inBtn,
   };
 })();

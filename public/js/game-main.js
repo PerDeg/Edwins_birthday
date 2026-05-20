@@ -69,6 +69,9 @@ const STATE = {
   LEADERBOARD:    'leaderboard',
   LEVEL_COMPLETE: 'level_complete',
   VICTORY:        'victory',
+  UPGRADE_PICK:   'upgrade_pick',
+  SURVIVAL:       'survival',
+  SURVIVAL_OVER:  'survival_over',
 };
 let gameState = STATE.MENU;
 
@@ -104,6 +107,25 @@ let levelKills        = 0;   // enemy kills in current level (excluding boss)
 let levelTotalEnemies = 0;   // total enemies spawned this level
 let lastLevelRank     = '';  // 'S'|'A'|'B'|'C'|'D'
 let levelAlertCount   = 0;   // number of unique grunt alerts this level (stealth run tracking)
+
+// ── Upgrade system ─────────────────────────────────────────────────────────────
+let playerUpgrades  = {};   // { id: true } for each active upgrade
+let playerMaxHp     = 100;  // adjustable via hp_max upgrade
+let playerBonusAmmo = 0;    // extra ammo from ammo_plus upgrade
+let upgradeChoices  = [];   // 3 current upgrade options (shown in UPGRADE_PICK state)
+let _nextLevelIdx   = 0;    // level to load after upgrade pick
+
+// ── Kill streak ────────────────────────────────────────────────────────────────
+let streakKills = 0;
+
+// ── Survival mode ─────────────────────────────────────────────────────────────
+let survivalMode       = false;
+let survivalWave       = 0;
+let survivalScore      = 0;
+let survivalKills      = 0;
+let wavePhase          = 'between';   // 'between' | 'fighting'
+let waveCountdown      = 3;
+let survivalLeaderboard = [];
 
 // ── Ground pound wave ─────────────────────────────────────────────────────────
 let groundPoundWave = null;
@@ -166,19 +188,31 @@ let gemWave = null;   // expanding ring visualisation for gem special
 
 // ── Canvas UI click handler (in-game screens only) ────────────────────────────
 function handleClick() {
-  const b = {
-    levelNext: { x: C.W * 0.5, y: C.H * 0.5 + 80,  w: 240, h: 50 },
-    boardBack: { x: C.W * 0.5, y: C.H * 0.5 + 200, w: 180, h: 42 },
-  };
+  function hit(cx, cy, w, h) {
+    return mouse.x >= cx-w/2 && mouse.x <= cx+w/2 && mouse.y >= cy-h/2 && mouse.y <= cy+h/2;
+  }
 
-  for (const [key, box] of Object.entries(b)) {
-    const hit = mouse.x >= box.x - box.w/2 && mouse.x <= box.x + box.w/2 &&
-                mouse.y >= box.y - box.h/2 && mouse.y <= box.y + box.h/2;
-    if (!hit) continue;
-    if (key === 'levelNext' && gameState === STATE.LEVEL_COMPLETE) advanceNextLevel();
-    else if (key === 'boardBack' && gameState === STATE.LEADERBOARD) {
-      _resetSubmitFlags(); _showMenu();
-    }
+  if (gameState === STATE.LEVEL_COMPLETE && hit(C.W*0.5, C.H*0.5+80, 240, 50)) {
+    advanceNextLevel();
+  }
+  if (gameState === STATE.LEADERBOARD && hit(C.W*0.5, C.H*0.5+200, 180, 42)) {
+    _resetSubmitFlags(); _showMenu();
+  }
+  if (gameState === STATE.UPGRADE_PICK) {
+    const cardW = 200, cardH = 270, cy = C.H/2 + 30;
+    const xs = [C.W/2 - 240, C.W/2, C.W/2 + 240];
+    xs.forEach((cx, i) => {
+      if (hit(cx, cy, cardW, cardH) && upgradeChoices[i]) selectUpgrade(upgradeChoices[i].id);
+    });
+  }
+  if (gameState === STATE.MENU && hit(C.W/2, C.H - 80, 220, 46)) {
+    initSurvival();
+  }
+  if (gameState === STATE.SURVIVAL_OVER && hit(C.W/2, C.H/2 + 70, 230, 50)) {
+    startSurvivalSubmit();
+  }
+  if (gameState === STATE.SURVIVAL_OVER && hit(C.W/2, C.H/2 + 134, 180, 42)) {
+    _resetSubmitFlags(); survivalMode = false; _showMenu();
   }
 }
 
@@ -189,11 +223,26 @@ function startSubmit() {
   _showOverlay();
 }
 
+function startSurvivalSubmit() {
+  gameState = STATE.SUBMIT;
+  submitName = ''; submitRank = null; submitDone = false;
+  _submitHeading.textContent = 'SURVIVAL OVER!';
+  _submitScore.textContent   = `Poäng: ${survivalScore.toLocaleString('sv')}  ·  Våning ${survivalWave}  ·  ${survivalKills} fiender`;
+  const saveBtn = document.getElementById('btn-save-score');
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Spara'; }
+  if (_nameInput) _nameInput.value = '';
+  if (_submitRankEl) _submitRankEl.style.display = 'none';
+  if (_submitOverlay) _submitOverlay.style.display = 'flex';
+  setTimeout(() => _nameInput && _nameInput.focus(), 80);
+}
+
 function finishSubmit(name) {
   const n = (name || '').trim();
   if (!n) return;
   submitName = n;
-  const payload = { name: n, score, level, kills };
+  const payload = survivalMode
+    ? { name: n, score: survivalScore, level: survivalWave, kills: survivalKills, difficulty: 'survival' }
+    : { name: n, score, level, kills };
   fetch('/api/scores', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -229,6 +278,53 @@ function fetchLeaderboard() {
     .catch(e => console.error('Leaderboard fetch error:', e));
 }
 
+function fetchSurvivalLeaderboard() {
+  fetch('/api/scores?difficulty=survival')
+    .then(r => r.json())
+    .then(d => { survivalLeaderboard = Array.isArray(d) ? d : []; })
+    .catch(e => console.error('Survival leaderboard fetch error:', e));
+}
+
+function initSurvival() {
+  _hideMenu();
+  _resetSubmitFlags();
+  _setTouchControls(true);
+  Audio.start();
+  HUD.reset();
+
+  player = new Player();
+  player.x = 600; player.y = 300;
+  particles = []; floatingTexts = []; petals = [];
+  coins = []; pickups = []; playerShurikens = []; shurikens = [];
+  hidingSpots = []; ladders = []; spikes = []; movingPlatforms = [];
+  checkpoints = []; smokeBombs = [];
+
+  platforms = SURVIVAL_ARENA.platforms.map(p => ({ ...p, h: 14 }));
+  enemies   = [];
+  boss      = null;
+
+  score = 0; combo = 1; comboTimer = 0; kills = 0; screenFlash = 0;
+  playerWeapon = 'sword'; throwAmmo = 0; gemPower = false;
+  playerHp = C.PLAYER_HP; playerMaxHp = C.PLAYER_HP;
+  playerUpgrades = {}; playerBonusAmmo = 0; streakKills = 0;
+  levelAlertCount = 0; levelTimer = 0; levelKills = 0; groundPoundWave = null;
+
+  survivalMode  = true;
+  survivalWave  = 0;
+  survivalScore = 0;
+  survivalKills = 0;
+  wavePhase     = 'between';
+  waveCountdown = 2;
+  level         = 0;
+  levelWidth    = C.W;
+  bgTheme       = 0;
+  Background.setTheme(0);
+  cam.x = 0; cam.shake = 0; cam.shakeDur = 0;
+
+  fetchSurvivalLeaderboard();
+  gameState = STATE.SURVIVAL;
+}
+
 function _resetSubmitFlags() {
   _gOverShown = false; _victoryShown = false;
 }
@@ -260,8 +356,7 @@ function loop(now) {
     _victoryShown = true; startSubmit();
   }
 
-  // Always sync touch-button visibility to game state
-  _setTouchControls(gameState === STATE.PLAYING);
+  _setTouchControls(gameState === STATE.PLAYING || gameState === STATE.SURVIVAL);
 
   Object.assign(prevKeys, keys);
   requestAnimationFrame(loop);

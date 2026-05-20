@@ -86,7 +86,7 @@ function _getWallContact(p) {
 // ── Grapple target finder ─────────────────────────────────────────────────────
 function _findHookTarget(p) {
   const pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
-  let best = null, bestDist = C.HOOK_RANGE;
+  let best = null, bestDist = C.HOOK_RANGE * (playerUpgrades.grapple_long ? 1.6 : 1);
   for (const pl of platforms) {
     const ax  = Math.max(pl.x + 8, Math.min(pl.x + pl.w - 8, pcx));
     const ay  = pl.y;
@@ -160,7 +160,7 @@ function updatePlayer(dt) {
       p.dashing = true; p.dashDir = dir;
       p.dashTimer   = C.DASH_DURATION;
       p.dashHitSet  = new Set();
-      p.dashCooldown = C.DASH_COOLDOWN;
+      p.dashCooldown = C.DASH_COOLDOWN * (playerUpgrades.dash_quick ? 0.5 : 1);
       p.vy = Math.min(p.vy, -80);  // small upward kick at start
       emitDashFire(particles, p.x + p.w / 2, p.y + p.h / 2, dir);
       emitDashFire(particles, p.x + p.w / 2, p.y + p.h / 2, dir);
@@ -195,7 +195,7 @@ function updatePlayer(dt) {
           screenFlash = Math.max(screenFlash, 0.45);
           triggerShake(9, 0.22);
           Audio.hit();
-          if (e.hp <= 0) killEnemy(e);
+          if (e.hp <= 0 || playerUpgrades.dash_deadly) killEnemy(e);
           else if (e instanceof Grunt) { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
         }
       }
@@ -302,8 +302,8 @@ function updatePlayer(dt) {
       // Wall jump takes priority when in the air near a platform edge
       const wallDir = !p.onGround && !p.onLadder ? _getWallContact(p) : 0;
       if (wallDir !== 0) {
-        p.vy = C.JUMP_V;
-        p.vx = -wallDir * C.WALL_JUMP_VX;
+        p.vy = C.JUMP_V * (playerUpgrades.wall_boost ? 1.25 : 1);
+        p.vx = -wallDir * C.WALL_JUMP_VX * (playerUpgrades.wall_boost ? 1.3 : 1);
         p.facing = -wallDir;
         emitDust(particles, p.x + (wallDir > 0 ? p.w : 0), p.y + p.h * 0.5);
         Audio.jump();
@@ -415,7 +415,7 @@ function updatePlayer(dt) {
       triggerShake(9, 0.28);
       emitLandingImpact(particles, p.x + p.w / 2, p.y + p.h, 700);
       Audio.hit();
-      const GP_RANGE = 80;
+      const GP_RANGE = 80 * (playerUpgrades.quake ? 2 : 1);
       groundPoundWave = { x: p.x + p.w / 2, y: p.y + p.h, r: 8, maxR: GP_RANGE + 30, timer: 0.38 };
       const pcx = p.x + p.w / 2;
       for (const e of enemies) {
@@ -459,13 +459,19 @@ function updatePlayer(dt) {
 function damagePlayer() {
   if (player.invincible > 0) return;
   playerHp = Math.max(0, playerHp - C.CONTACT_DAMAGE);
-  combo = 1; comboTimer = 0;
+  combo = 1; comboTimer = 0; streakKills = 0;
   player.invincible = C.INVINCIBLE_TIME;
   screenFlash = 1;
   triggerShake(10, 0.35);
   emitHit(particles, player.x + player.w / 2, player.y + player.h / 2);
   Audio.hit();
   if (playerHp <= 0) {
+    if (playerUpgrades.smoke_death) {
+      smokeBombs.push(new SmokeBomb(player.x + player.w/2, player.y + player.h/2));
+    }
+    if (survivalMode) {
+      gameState = STATE.SURVIVAL_OVER; Audio.stop(); return;
+    }
     const activeCP = checkpoints.findLast(c => c.activated);
     if (activeCP) {
       playerHp       = 40;
@@ -499,10 +505,15 @@ function throwWeapon() {
     return;
   }
   if (playerWeapon === 'triple') {
-    [-0.18, 0, 0.18].forEach(a =>
-      playerShurikens.push(new PlayerShuriken(cx, cy, player.facing, 'shuriken', a)));
+    [-0.18, 0, 0.18].forEach(a => {
+      const ps = new PlayerShuriken(cx, cy, player.facing, 'shuriken', a);
+      if (playerUpgrades.pierce_all) ps.piercing = true;
+      playerShurikens.push(ps);
+    });
   } else {
-    playerShurikens.push(new PlayerShuriken(cx, cy, player.facing, playerWeapon === 'knife' ? 'knife' : 'shuriken'));
+    const ps = new PlayerShuriken(cx, cy, player.facing, playerWeapon === 'knife' ? 'knife' : 'shuriken');
+    if (playerUpgrades.pierce_all) ps.piercing = true;
+    playerShurikens.push(ps);
   }
   throwAmmo--;
   if (throwAmmo <= 0) { throwAmmo = 0; playerWeapon = 'sword'; }
@@ -667,6 +678,20 @@ function killEnemy(e, stealth = false) {
   e.dyingRot    = 0;
   e.dyingRotSpd = (Math.random() > 0.5 ? 1 : -1) * (7 + Math.random() * 9);
   kills++; levelKills++;
+  if (survivalMode) { survivalKills++; survivalScore += 10 * Math.max(1, survivalWave); }
+  // Kill streak rewards
+  streakKills++;
+  if (streakKills === C.STREAK_SMOKE) {
+    pickups.push(new WeaponPickup(e.x, e.y - 10, 'smoke'));
+    floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 50, 'ELDSVIT! RÖKBOMB!', '#88cc88', 1.8));
+  } else if (streakKills === C.STREAK_TRIPLE) {
+    pickups.push(new WeaponPickup(e.x, e.y - 10, 'triple'));
+    floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 50, 'ELDSVIT! TRIPPELSTJÄRNA!', '#ff8c35', 1.9));
+    triggerShake(6, 0.22);
+  }
+  if (playerUpgrades.stealth_jump && stealth) {
+    player.jumpsLeft = Math.max(player.jumpsLeft, 1);
+  }
   // Drop 1-3 coins at kill position
   const dropCount = 1 + Math.floor(Math.random() * 3);
   for (let i = 0; i < dropCount; i++) {
@@ -714,6 +739,19 @@ function updateBoss(dt) {
   boss.update(dt, player, shurikens, playerShurikens);
   if (boss.hitFlash > 0) boss.hitFlash = Math.max(0, boss.hitFlash - dt);
 
+  // Edwin: summon grunts on entering phase 2
+  if (boss.type === 'edwin' && boss.phase2 && !boss.summonedGrunts) {
+    boss.summonedGrunts = true;
+    const p = boss.platform;
+    [p.x + 24, p.x + p.w - 54].forEach(ex => {
+      const g = new Grunt(ex, p, C.ENEMY_SPEED_MUL * 1.3);
+      g.aiState = 'alert'; g.detectTimer = C.DETECTION_TIME;
+      enemies.push(g);
+    });
+    floatingTexts.push(new FloatingText(boss.x + boss.w/2, boss.y - 55, 'SKICKAR VAKTER!', '#ff4040', 1.8));
+    levelTotalEnemies += 2;
+  }
+
   // Phase 2 transition announcement
   if (boss.phase2 && !boss.phase2Announced) {
     boss.phase2Announced = true;
@@ -747,6 +785,17 @@ function killBoss() {
   triggerShake(22, 0.9);
   screenFlash = 1;
   Audio.defeat();
+
+  // Edwin: special victory fanfare
+  if (boss.type === 'edwin') {
+    for (let i = 0; i < 10; i++)
+      emitEnemyDeath(particles, boss.x + boss.w/2 + (i-4)*25, boss.y + boss.h/2 - i*5);
+    floatingTexts.push(new FloatingText(boss.x + boss.w/2, boss.y - 90, 'GRATTIS EDWIN! \u{1F38A}', '#ffd700', 2.8));
+    floatingTexts.push(new FloatingText(boss.x + boss.w/2, boss.y - 125, 'DU ÄR EN RIKTIG NINJA!', '#ffffff', 1.8));
+  }
+
+  // Survival boss kill adds score
+  if (survivalMode) { survivalScore += C.BOSS_KILL_SCORE; }
 
   // Stealth run bonus
   if (levelAlertCount === 0) {
@@ -859,7 +908,9 @@ function updateCoins(dt) {
     }
     if (rectsOverlap(player.bounds(), c.bounds())) {
       c.alive = false;
-      score += C.COIN_VALUE;
+      const coinVal = C.COIN_VALUE * (playerUpgrades.coin_double ? 2 : 1);
+      score += coinVal;
+      if (survivalMode) survivalScore += coinVal;
       Audio.coin();
       floatingTexts.push(new FloatingText(c.x + c.w/2, c.y - 8, `+${C.COIN_VALUE}`, '#ffd700', 0.85));
     }
@@ -891,13 +942,13 @@ function updatePickups(dt) {
         }
       } else if (p.type === 'smoke') {
         playerWeapon = 'smoke';
-        throwAmmo    = C.SMOKE_AMMO;
+        throwAmmo    = C.SMOKE_AMMO + playerBonusAmmo;
         floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, 'RÖKBOMB!', '#88cc88', 1.2));
         floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, `TRYCK X  ×${C.SMOKE_AMMO}`, 'rgba(255,255,255,0.75)', 0.78));
         Audio.djump();
       } else {
         playerWeapon = p.type;
-        throwAmmo = C.THROW_AMMO;
+        throwAmmo = C.THROW_AMMO + playerBonusAmmo;
         floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 10, labels[p.type] || p.type, '#4fc3f7', 1.2));
         floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 30, `TRYCK X  ×${C.THROW_AMMO}`, 'rgba(255,255,255,0.75)', 0.78));
         Audio.djump();
@@ -942,6 +993,70 @@ function updateCheckpoints() {
   }
 }
 
+// ── Survival wave system ──────────────────────────────────────────────────────
+function _waveSpec(wave) {
+  if (wave === 1) return { grunts: 3, shields: 0, archers: 0, boss: false };
+  if (wave === 2) return { grunts: 4, shields: 0, archers: 2, boss: false };
+  if (wave === 3) return { grunts: 5, shields: 1, archers: 2, boss: false };
+  if (wave === 4) return { grunts: 5, shields: 1, archers: 3, boss: false };
+  if (wave === 5) return { grunts: 6, shields: 2, archers: 3, boss: true  };
+  const b = Math.min(wave - 4, 6);
+  return { grunts: 6 + b, shields: 2 + Math.floor(b/2), archers: 3 + Math.floor(b/2), boss: wave % 3 === 0 };
+}
+
+function spawnWave(wave) {
+  survivalWave = wave;
+  enemies      = [];
+  boss         = null;
+  const spec    = _waveSpec(wave);
+  const spdMul  = C.ENEMY_SPEED_MUL * (1 + (wave - 1) * 0.09);
+  const shootInt = C.archerInterval * C.SHOOT_MUL * Math.max(0.5, 1 - (wave-1)*0.07);
+  const plats   = platforms;
+
+  for (let i = 0; i < spec.grunts; i++) {
+    const gx    = i % 2 === 0 ? 25 + Math.random()*30 : 1145 + Math.random()*30;
+    const gPlat = { x: gx - 80, y: C.GROUND_Y, w: 160, h: 14 };
+    const g     = new Grunt(gx, gPlat, spdMul);
+    g.aiState = 'alert'; g.detectTimer = C.DETECTION_TIME;
+    enemies.push(g);
+  }
+  for (let i = 0; i < spec.shields; i++) {
+    const pl = plats[i % plats.length];
+    const sg = new ShieldGrunt(pl.x + pl.w * 0.4, pl, spdMul);
+    sg.aiState = 'alert'; sg.detectTimer = C.DETECTION_TIME;
+    enemies.push(sg);
+  }
+  for (let i = 0; i < spec.archers; i++) {
+    const pl = plats[(i + 1) % plats.length];
+    enemies.push(new Archer(pl.x + pl.w * 0.5, pl, spdMul, shootInt));
+  }
+  if (spec.boss) {
+    const bp = plats[4]; // top-centre platform
+    boss = new Boss(bp.x + bp.w/2 - 21, bp.y - 64, bp, 6 + wave, 'samurai');
+  }
+
+  wavePhase = 'fighting';
+  floatingTexts.push(new FloatingText(C.W/2 + cam.x, C.GROUND_Y - 220,
+    `VÅNING ${wave}!`, '#ffe040', 2.2));
+  Audio.bossFight();
+}
+
+function updateSurvival(dt) {
+  const anyAlive = enemies.some(e => e.alive) || (boss && boss.alive);
+  if (anyAlive) return;
+  waveCountdown -= dt;
+  if (waveCountdown <= 0) {
+    const bonus = survivalWave * 100;
+    if (survivalWave > 0) {
+      survivalScore += bonus;
+      floatingTexts.push(new FloatingText(C.W/2 + cam.x, C.GROUND_Y - 260,
+        `VÅNING KLAR! +${bonus}`, C.COL_GOLD, 1.6));
+    }
+    spawnWave(survivalWave + 1);
+    waveCountdown = 4;
+  }
+}
+
 // ── Boss barrier — player can't run past a living boss ─────────────────────────
 function _applyBossBarrier() {
   if (!boss || !boss.alive || !player) return;
@@ -976,9 +1091,17 @@ function update(dt) {
     floatingTexts = floatingTexts.filter(t => t.alive);
     return;
   }
-  if (gameState !== STATE.PLAYING) return;
+  if (gameState === STATE.UPGRADE_PICK) {
+    for (const p of particles)     p.update(dt);
+    for (const t of floatingTexts) t.update(dt);
+    particles     = particles.filter(p => p.alive);
+    floatingTexts = floatingTexts.filter(t => t.alive);
+    return;
+  }
+  const isSurvival = gameState === STATE.SURVIVAL;
+  if (gameState !== STATE.PLAYING && !isSurvival) return;
 
-  levelTimer += dt;
+  if (!survivalMode) levelTimer += dt;
   updateMovingPlatforms(dt);
   updatePlayer(dt);
   _applyBossBarrier();
@@ -989,7 +1112,8 @@ function update(dt) {
   updatePickups(dt);
   updateSpikes();
   updateSmokeBombs(dt);
-  updateCheckpoints();
+  if (!survivalMode) updateCheckpoints();
+  else { updateSurvival(dt); cam.x = 0; }
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);

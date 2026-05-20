@@ -195,6 +195,17 @@ function draw(dt) {
     UI.drawMenu(ctx, dt, leaderboard);
     return;
   }
+  if (gameState === STATE.SURVIVAL_OVER) {
+    Background.drawBackground(ctx, 0);
+    UI.drawSurvivalOver(ctx, survivalScore, survivalWave, survivalKills, survivalLeaderboard, mouse);
+    UI.drawHitFlash(ctx, screenFlash);
+    return;
+  }
+  if (gameState === STATE.UPGRADE_PICK) {
+    UI.drawUpgradePick(ctx, dt, upgradeChoices, mouse);
+    for (const p of particles) p.draw(ctx);
+    return;
+  }
 
   Background.drawBackground(ctx, cam.x);
 
@@ -607,8 +618,8 @@ function draw(dt) {
     ctx.fillRect(0, 0, C.W, C.H);
   }
 
-  if (gameState === STATE.PLAYING) {
-    HUD.draw(ctx, { playerHp, score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth, throwAmmo });
+  if (gameState === STATE.PLAYING || gameState === STATE.SURVIVAL) {
+    HUD.draw(ctx, { playerHp, score: survivalMode ? survivalScore : score, level, combo, boss, playerWeapon, gemPower, camX: cam.x, levelWidth, throwAmmo, survivalWave, survivalMode });
   } else if (gameState === STATE.LEVEL_COMPLETE) {
     UI.drawLevelComplete(ctx, dt, C.LEVEL_DATA[currentLevelIdx].name, level, currentLevelIdx >= C.LEVEL_DATA.length - 1);
   } else if (gameState === STATE.GAMEOVER) {
