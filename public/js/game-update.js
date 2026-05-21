@@ -1024,58 +1024,87 @@ function _waveSpec(wave) {
 }
 
 function spawnWave(wave) {
-  survivalWave = wave;
-  enemies      = [];
-  boss         = null;
-  const spec    = _waveSpec(wave);
-  const spdMul  = C.ENEMY_SPEED_MUL * (1 + (wave - 1) * 0.1);
-  const shootInt = C.archerInterval * C.SHOOT_MUL * Math.max(0.4, 1 - (wave-1)*0.08);
-  const plats   = platforms;
+  survivalWave       = wave;
+  enemies            = [];
+  boss               = null;
+  survivalSpawnQueue = [];
+  survivalSpawnTimer = 0;
 
-  // All ground grunts spawn from the right edge, spread out
+  const spec     = _waveSpec(wave);
+  const spdMul   = C.ENEMY_SPEED_MUL * (1 + (wave - 1) * 0.1);
+  const shootInt = C.archerInterval * C.SHOOT_MUL * Math.max(0.4, 1 - (wave-1)*0.08);
+  const plats    = platforms;
+
+  // Build queue — blueprints only, enemies trickle in during updateSurvival
   for (let i = 0; i < spec.grunts; i++) {
-    const gx    = 1100 + i * 8 + Math.random() * 60;
-    const gPlat = { x: gx - 80, y: C.GROUND_Y, w: 160, h: 14 };
-    const g     = new Grunt(gx, gPlat, spdMul);
-    g.aiState = 'alert'; g.detectTimer = C.DETECTION_TIME;
-    enemies.push(g);
+    const gx = 1100 + i * 6 + Math.random() * 50;
+    survivalSpawnQueue.push({ type: 'grunt', gx, spdMul });
   }
-  // Shield grunts spawn on varied platforms
   for (let i = 0; i < spec.shields; i++) {
     const pl = plats[(i * 2 + 1) % plats.length];
-    const sg = new ShieldGrunt(pl.x + pl.w * 0.8, pl, spdMul);
-    sg.aiState = 'alert'; sg.detectTimer = C.DETECTION_TIME;
-    enemies.push(sg);
+    survivalSpawnQueue.push({ type: 'shield', pl, spdMul });
   }
-  // Archers spread across platforms
   for (let i = 0; i < spec.archers; i++) {
     const pl = plats[i % plats.length];
-    enemies.push(new Archer(pl.x + pl.w * 0.6, pl, spdMul, shootInt));
+    survivalSpawnQueue.push({ type: 'archer', pl, spdMul, shootInt });
   }
-  if (spec.boss) {
-    const bp = plats[4];
-    boss = new Boss(bp.x + bp.w/2 - 18, bp.y - 48, bp, 6 + wave, 'samurai');
-    Audio.bossFight();
-  }
+  // Shuffle so enemy types arrive in varied order, boss always last
+  survivalSpawnQueue.sort(() => Math.random() - 0.5);
+  if (spec.boss) survivalSpawnQueue.push({ type: 'boss', wave });
 
   wavePhase = 'fighting';
   floatingTexts.push(new FloatingText(C.W/2, C.GROUND_Y - 220,
     `VÅNING ${wave}!`, '#ffe040', 2.2));
 }
 
+function _doSpawn(bp) {
+  const plats = platforms;
+  if (bp.type === 'grunt') {
+    const gPlat = { x: bp.gx - 80, y: C.GROUND_Y, w: 160, h: 14 };
+    const g = new Grunt(bp.gx, gPlat, bp.spdMul);
+    g.aiState = 'alert'; g.detectTimer = C.DETECTION_TIME;
+    enemies.push(g);
+  } else if (bp.type === 'shield') {
+    const sg = new ShieldGrunt(bp.pl.x + bp.pl.w * 0.8, bp.pl, bp.spdMul);
+    sg.aiState = 'alert'; sg.detectTimer = C.DETECTION_TIME;
+    enemies.push(sg);
+  } else if (bp.type === 'archer') {
+    enemies.push(new Archer(bp.pl.x + bp.pl.w * 0.6, bp.pl, bp.spdMul, bp.shootInt));
+  } else if (bp.type === 'boss') {
+    const bp2 = plats[4];
+    boss = new Boss(bp2.x + bp2.w/2 - 18, bp2.y - 48, bp2, 6 + bp.wave, 'samurai');
+    Audio.bossFight();
+  }
+}
+
+const _SPAWN_INTERVAL   = 1.8;   // seconds between each new enemy
+const _MAX_CONCURRENT   = 5;     // max alive enemies on screen at once
+
 function updateSurvival(dt) {
-  const anyAlive = enemies.some(e => e.alive) || (boss && boss.alive);
-  if (anyAlive) return;
-  waveCountdown -= dt;
-  if (waveCountdown <= 0) {
-    const bonus = survivalWave * 100;
-    if (survivalWave > 0) {
-      survivalScore += bonus;
-      floatingTexts.push(new FloatingText(C.W/2 + cam.x, C.GROUND_Y - 260,
-        `VÅNING KLAR! +${bonus}`, C.COL_GOLD, 1.6));
+  // Drip-feed enemies from queue
+  if (survivalSpawnQueue.length > 0) {
+    survivalSpawnTimer -= dt;
+    const aliveCount = enemies.filter(e => e.alive).length;
+    if (survivalSpawnTimer <= 0 && aliveCount < _MAX_CONCURRENT) {
+      _doSpawn(survivalSpawnQueue.shift());
+      survivalSpawnTimer = _SPAWN_INTERVAL;
     }
-    spawnWave(survivalWave + 1);
-    waveCountdown = 4;
+  }
+
+  // Wave complete when queue is empty and no enemies alive
+  const anyAlive = enemies.some(e => e.alive) || (boss && boss.alive);
+  if (!anyAlive && survivalSpawnQueue.length === 0) {
+    waveCountdown -= dt;
+    if (waveCountdown <= 0) {
+      const bonus = survivalWave * 100;
+      if (survivalWave > 0) {
+        survivalScore += bonus;
+        floatingTexts.push(new FloatingText(C.W/2, C.GROUND_Y - 260,
+          `VÅNING KLAR! +${bonus}`, C.COL_GOLD, 1.6));
+      }
+      spawnWave(survivalWave + 1);
+      waveCountdown = 4;
+    }
   }
 }
 

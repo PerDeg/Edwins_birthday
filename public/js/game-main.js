@@ -119,12 +119,14 @@ let _nextLevelIdx   = 0;    // level to load after upgrade pick
 let streakKills = 0;
 
 // ── Survival mode ─────────────────────────────────────────────────────────────
-let survivalMode       = false;
-let survivalWave       = 0;
-let survivalScore      = 0;
-let survivalKills      = 0;
-let wavePhase          = 'between';   // 'between' | 'fighting'
-let waveCountdown      = 3;
+let survivalMode        = false;
+let survivalWave        = 0;
+let survivalScore       = 0;
+let survivalKills       = 0;
+let wavePhase           = 'between';   // 'between' | 'fighting'
+let waveCountdown       = 3;
+let survivalSpawnQueue  = [];          // pending enemy blueprints
+let survivalSpawnTimer  = 0;           // seconds until next spawn from queue
 let survivalLeaderboard = [];
 
 // ── Ground pound wave ─────────────────────────────────────────────────────────
@@ -307,12 +309,14 @@ function initSurvival() {
   playerUpgrades = {}; playerBonusAmmo = 0; streakKills = 0;
   levelAlertCount = 0; levelTimer = 0; levelKills = 0; groundPoundWave = null;
 
-  survivalMode  = true;
-  survivalWave  = 0;
-  survivalScore = 0;
-  survivalKills = 0;
-  wavePhase     = 'between';
-  waveCountdown = 2;
+  survivalMode       = true;
+  survivalWave       = 0;
+  survivalScore      = 0;
+  survivalKills      = 0;
+  wavePhase          = 'between';
+  waveCountdown      = 2;
+  survivalSpawnQueue = [];
+  survivalSpawnTimer = 0;
   level         = 0;
   levelWidth    = C.W;
   bgTheme       = 0;
