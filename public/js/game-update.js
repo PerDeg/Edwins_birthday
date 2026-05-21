@@ -35,10 +35,11 @@ function updateMovingPlatforms(dt) {
 
 // ── Camera ─────────────────────────────────────────────────────────────────────
 function updateCamera(dt) {
-  const target = player.x - C.W * 0.35;
-  const newX   = cam.x + (target - cam.x) * Math.min(dt * 8, 1);
-  // Ratchet: camera only advances forward, never scrolls back
-  cam.x = Math.max(cam.x, Math.max(0, Math.min(levelWidth - C.W * 0.4, newX)));
+  if (!survivalMode) {
+    const target = player.x - C.W * 0.35;
+    const newX   = cam.x + (target - cam.x) * Math.min(dt * 8, 1);
+    cam.x = Math.max(cam.x, Math.max(0, Math.min(levelWidth - C.W * 0.4, newX)));
+  }
   if (cam.shakeDur > 0) {
     cam.shakeDur -= dt;
     cam.shake = cam.shakeDur > 0 ? (Math.random() - 0.5) * 14 : 0;
@@ -461,9 +462,10 @@ function damagePlayer() {
   playerHp = Math.max(0, playerHp - C.CONTACT_DAMAGE);
   combo = 1; comboTimer = 0; streakKills = 0;
   player.invincible = C.INVINCIBLE_TIME;
-  screenFlash = 1;
-  triggerShake(10, 0.35);
+  screenFlash = 1.8;
+  triggerShake(14, 0.45);
   emitHit(particles, player.x + player.w / 2, player.y + player.h / 2);
+  floatingTexts.push(new FloatingText(player.x + player.w/2, player.y - 18, `-${C.CONTACT_DAMAGE}`, '#ff2020', 1.6));
   Audio.hit();
   if (playerHp <= 0) {
     if (playerUpgrades.smoke_death) {
@@ -644,15 +646,26 @@ function updateEnemies(dt) {
         } else if (e instanceof Grunt && e.aiState !== 'alert' && e.isBehind(player)) {
           killEnemy(e, true);
         } else if (e.type === 'shield-grunt' && e.shieldBlocks(player.x + player.w / 2)) {
-          // Shield blocks the hit — knock player back
-          player.vx       = -player.facing * 230;
-          player.vy       = -110;
-          player.attacking = false;
-          triggerShake(5, 0.18);
+          e.shieldHp--;
           emitHit(particles, hb.x + hb.w / 2, hb.y + hb.h / 2);
           Audio.shieldBlock();
-          floatingTexts.push(new FloatingText(e.x + e.w / 2, e.y - 32, 'BLOCKAD!', '#88aaff', 1.2));
           e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME;
+          if (e.shieldHp <= 0) {
+            e.shieldBroken = true;
+            floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 34, 'SKÖLD KROSSAD!', '#ff8c35', 1.5));
+            triggerShake(6, 0.20);
+            // Shield just broke — count this hit as landing
+            e.hp--;
+            e.hitFlash = 0.12;
+            if (e.hp <= 0) killEnemy(e);
+          } else {
+            // Shield held — knock player back
+            player.vx       = -player.facing * 230;
+            player.vy       = -110;
+            player.attacking = false;
+            triggerShake(5, 0.18);
+            floatingTexts.push(new FloatingText(e.x + e.w/2, e.y - 32, 'BLOCKAD!', '#88aaff', 1.2));
+          }
         } else {
           e.hp--;
           e.hitFlash = 0.12;
@@ -849,11 +862,17 @@ function updatePlayerShurikens(dt) {
 
     if (boss && boss.alive && !s.hitSet.has(boss) && rectsOverlap(s.bounds(), boss.bounds())) {
       if (boss.shieldActive) {
-        // Shield blocks thrown weapons — spark and sound
+        boss.shieldHp--;
         s.alive = false;
         emitHit(particles, s.x, s.y);
         Audio.shieldBlock();
         triggerShake(3, 0.12);
+        if (boss.shieldHp <= 0) {
+          boss.shieldBroken = true;
+          boss.shieldActive = false;
+          floatingTexts.push(new FloatingText(boss.x + boss.w/2, boss.y - 46, 'SKÖLD KROSSAD!', '#ff8c35', 1.6));
+          triggerShake(8, 0.30);
+        }
       } else if (boss.takeDamage()) {
         emitHit(particles, boss.x + boss.w/2, boss.y + boss.h/2);
         if (boss.hp <= 0) killBoss();
@@ -995,13 +1014,13 @@ function updateCheckpoints() {
 
 // ── Survival wave system ──────────────────────────────────────────────────────
 function _waveSpec(wave) {
-  if (wave === 1) return { grunts: 3, shields: 0, archers: 0, boss: false };
-  if (wave === 2) return { grunts: 4, shields: 0, archers: 2, boss: false };
-  if (wave === 3) return { grunts: 5, shields: 1, archers: 2, boss: false };
-  if (wave === 4) return { grunts: 5, shields: 1, archers: 3, boss: false };
-  if (wave === 5) return { grunts: 6, shields: 2, archers: 3, boss: true  };
-  const b = Math.min(wave - 4, 6);
-  return { grunts: 6 + b, shields: 2 + Math.floor(b/2), archers: 3 + Math.floor(b/2), boss: wave % 3 === 0 };
+  if (wave === 1) return { grunts: 5,  shields: 0, archers: 0, boss: false };
+  if (wave === 2) return { grunts: 7,  shields: 0, archers: 2, boss: false };
+  if (wave === 3) return { grunts: 8,  shields: 1, archers: 3, boss: false };
+  if (wave === 4) return { grunts: 9,  shields: 2, archers: 4, boss: false };
+  if (wave === 5) return { grunts: 10, shields: 2, archers: 4, boss: true  };
+  const b = Math.min(wave - 4, 8);
+  return { grunts: 10 + b, shields: 2 + Math.floor(b/2), archers: 4 + Math.floor(b/2), boss: wave % 3 === 0 };
 }
 
 function spawnWave(wave) {
@@ -1009,36 +1028,39 @@ function spawnWave(wave) {
   enemies      = [];
   boss         = null;
   const spec    = _waveSpec(wave);
-  const spdMul  = C.ENEMY_SPEED_MUL * (1 + (wave - 1) * 0.09);
-  const shootInt = C.archerInterval * C.SHOOT_MUL * Math.max(0.5, 1 - (wave-1)*0.07);
+  const spdMul  = C.ENEMY_SPEED_MUL * (1 + (wave - 1) * 0.1);
+  const shootInt = C.archerInterval * C.SHOOT_MUL * Math.max(0.4, 1 - (wave-1)*0.08);
   const plats   = platforms;
 
+  // All ground grunts spawn from the right edge, spread out
   for (let i = 0; i < spec.grunts; i++) {
-    const gx    = i % 2 === 0 ? 25 + Math.random()*30 : 1145 + Math.random()*30;
+    const gx    = 1100 + i * 8 + Math.random() * 60;
     const gPlat = { x: gx - 80, y: C.GROUND_Y, w: 160, h: 14 };
     const g     = new Grunt(gx, gPlat, spdMul);
     g.aiState = 'alert'; g.detectTimer = C.DETECTION_TIME;
     enemies.push(g);
   }
+  // Shield grunts spawn on varied platforms
   for (let i = 0; i < spec.shields; i++) {
-    const pl = plats[i % plats.length];
-    const sg = new ShieldGrunt(pl.x + pl.w * 0.4, pl, spdMul);
+    const pl = plats[(i * 2 + 1) % plats.length];
+    const sg = new ShieldGrunt(pl.x + pl.w * 0.8, pl, spdMul);
     sg.aiState = 'alert'; sg.detectTimer = C.DETECTION_TIME;
     enemies.push(sg);
   }
+  // Archers spread across platforms
   for (let i = 0; i < spec.archers; i++) {
-    const pl = plats[(i + 1) % plats.length];
-    enemies.push(new Archer(pl.x + pl.w * 0.5, pl, spdMul, shootInt));
+    const pl = plats[i % plats.length];
+    enemies.push(new Archer(pl.x + pl.w * 0.6, pl, spdMul, shootInt));
   }
   if (spec.boss) {
-    const bp = plats[4]; // top-centre platform
-    boss = new Boss(bp.x + bp.w/2 - 21, bp.y - 64, bp, 6 + wave, 'samurai');
+    const bp = plats[4];
+    boss = new Boss(bp.x + bp.w/2 - 18, bp.y - 48, bp, 6 + wave, 'samurai');
+    Audio.bossFight();
   }
 
   wavePhase = 'fighting';
-  floatingTexts.push(new FloatingText(C.W/2 + cam.x, C.GROUND_Y - 220,
+  floatingTexts.push(new FloatingText(C.W/2, C.GROUND_Y - 220,
     `VÅNING ${wave}!`, '#ffe040', 2.2));
-  Audio.bossFight();
 }
 
 function updateSurvival(dt) {
@@ -1113,7 +1135,7 @@ function update(dt) {
   updateSpikes();
   updateSmokeBombs(dt);
   if (!survivalMode) updateCheckpoints();
-  else { updateSurvival(dt); cam.x = 0; }
+  else updateSurvival(dt);
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);

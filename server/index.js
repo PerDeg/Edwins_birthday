@@ -144,8 +144,8 @@ app.post('/api/scores', async (req, res) => {
       [name, score, difficulty, level, kills]
     );
     const rankResult = await pool.query(
-      'SELECT COUNT(*) FROM scores WHERE score >= $1',
-      [score]
+      'SELECT COUNT(*) FROM scores WHERE score >= $1 AND difficulty = $2',
+      [score, difficulty]
     );
     const rank = parseInt(rankResult.rows[0].count, 10);
     res.status(201).json({ ok: true, rank });

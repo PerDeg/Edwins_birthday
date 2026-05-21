@@ -366,12 +366,12 @@ class Grunt {
         if (this.detectTimer <= 0) this.aiState = 'patrol';
       }
     } else if (this.aiState === 'alert') {
-      if (!sees) {
+      if (!sees && !survivalMode) {
         this.lostTimer += dt;
         if (this.lostTimer > 3.0) { this.aiState = 'return'; this.lostTimer = 0; }
       } else { this.lostTimer = 0; }
     } else if (this.aiState === 'return') {
-      if (sees) { this.aiState = 'alert'; this.detectTimer = C.DETECTION_TIME; }
+      if (sees || survivalMode) { this.aiState = 'alert'; this.detectTimer = C.DETECTION_TIME; }
     }
   }
   update(dt, player) {
@@ -462,13 +462,15 @@ class Grunt {
 class ShieldGrunt extends Grunt {
   constructor(px, platform, speedMul) {
     super(px, platform, speedMul);
-    this.type   = 'shield-grunt';
-    this.hp     = C.SHIELD_GRUNT_HP;
-    this.maxHp  = C.SHIELD_GRUNT_HP;
+    this.type        = 'shield-grunt';
+    this.hp          = C.SHIELD_GRUNT_HP;
+    this.maxHp       = C.SHIELD_GRUNT_HP;
+    this.shieldHp    = 3;
+    this.shieldBroken = false;
   }
   shieldBlocks(attackerCX) {
-    // Shield covers the front face — blocks if attacker is on the side the enemy faces
-    return (attackerCX - (this.x + this.w / 2)) * this.facing > 0;
+    return !this.shieldBroken &&
+      (attackerCX - (this.x + this.w / 2)) * this.facing > 0;
   }
 }
 
@@ -513,9 +515,12 @@ class Archer {
     this.animTimer += dt;
     if (this.animTimer > 0.14) { this.animFrame = (this.animFrame + 1) % 4; this.animTimer = 0; }
 
-    // Only track and shoot when player is visible (not hidden, not smoked, within vertical range)
-    const dy = Math.abs((player.y + player.h / 2) - (this.y + this.h / 2));
-    const canSee = !player.hiding && dy < C.DETECTION_HEIGHT &&
+    // Only track and shoot when player is visible (directional — harder to sneak from behind)
+    const dy  = Math.abs((player.y + player.h / 2) - (this.y + this.h / 2));
+    const pdx = (player.x + player.w / 2) - (this.x + this.w / 2);
+    const inFront    = pdx * this.facing > 0;
+    const effHeight  = inFront ? C.DETECTION_HEIGHT : C.DETECTION_HEIGHT * 0.35;
+    const canSee = !player.hiding && dy < effHeight &&
       !_inSmoke(player.x + player.w / 2, player.y + player.h / 2) &&
       !_inSmoke(this.x + this.w / 2, this.y + this.h / 2);
 
@@ -905,8 +910,8 @@ class Boss {
     this.platform = platform;
     this.type     = type;   // 'samurai' | 'archer-boss' | 'demon'
     const _ninja = type === 'ninja-duel' || type === 'edwin';
-    this.w  = type === 'demon' ? 50 : type === 'samurai' ? 42 : _ninja ? 30 : 38;
-    this.h  = type === 'demon' ? 72 : type === 'samurai' ? 64 : _ninja ? 48 : 60;
+    this.w  = _ninja ? 30 : 36;
+    this.h  = _ninja ? 48 : 54;
     this.x  = x;
     this.y  = y;
     this.vx = 0; this.vy = 0;
@@ -925,6 +930,8 @@ class Boss {
     this.shieldTimer   = 0;
     this.hitFlash = 0;
     this.phase2Announced = false;
+    this.shieldHp    = 3;
+    this.shieldBroken = false;
     // Edwin-specific
     this.blinkTimer     = 8 + Math.random() * 4;
     this.blinking       = false;
@@ -970,7 +977,7 @@ class Boss {
     const shOnDur  = this.phase2 ? 2.6 : 2.2;
     const shCycle  = shOffDur + shOnDur;
     this.shieldTimer = (this.shieldTimer + dt) % shCycle;
-    this.shieldActive = this.shieldTimer >= shOffDur;
+    this.shieldActive = !this.shieldBroken && this.shieldTimer >= shOffDur;
 
     // Dodge incoming player projectiles
     if (this.onGround && this.invincible <= 0 && playerShurikens) {

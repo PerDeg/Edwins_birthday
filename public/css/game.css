@@ -203,32 +203,55 @@ html {
   align-items: flex-end;
   justify-content: center;
   z-index: 40;
-  padding-bottom: 14vh;
-  pointer-events: none;   /* let canvas receive mouse events for hover effects */
+  padding-bottom: 10vh;
+  pointer-events: none;
 }
 
-#btn-start-game {
+#menu-btn-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   pointer-events: all;
-  padding: 1rem 2.6rem;
-  background: rgba(200,168,60,0.14);
-  border: 2px solid #c8a83c;
-  border-radius: 6px;
-  color: #c8a83c;
+}
+
+#btn-start-game,
+#btn-start-survival {
+  width: clamp(220px, 55vw, 340px);
+  padding: 0.95rem 2rem;
+  border-radius: 8px;
   font-family: system-ui, sans-serif;
-  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  font-size: clamp(0.9rem, 2.2vw, 1.1rem);
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   cursor: pointer;
-  text-shadow: 0 0 12px rgba(200,168,60,0.5);
-  box-shadow: 0 0 22px rgba(200,168,60,0.18);
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-#btn-start-game:hover,
-#btn-start-game:active {
+
+#btn-start-game {
+  background: rgba(200,168,60,0.14);
+  border: 2px solid #c8a83c;
+  color: #c8a83c;
+  text-shadow: 0 0 12px rgba(200,168,60,0.5);
+  box-shadow: 0 0 22px rgba(200,168,60,0.18);
+}
+#btn-start-game:hover, #btn-start-game:active {
   background: rgba(200,168,60,0.30);
   box-shadow: 0 0 36px rgba(200,168,60,0.35);
+}
+
+#btn-start-survival {
+  background: rgba(70,130,200,0.14);
+  border: 2px solid #4a88cc;
+  color: #6aaaee;
+  text-shadow: 0 0 12px rgba(70,130,200,0.45);
+  box-shadow: 0 0 18px rgba(70,130,200,0.15);
+}
+#btn-start-survival:hover, #btn-start-survival:active {
+  background: rgba(70,130,200,0.28);
+  box-shadow: 0 0 30px rgba(70,130,200,0.30);
 }
 
 /* Back link */

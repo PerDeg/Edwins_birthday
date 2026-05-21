@@ -328,11 +328,12 @@ function draw(dt) {
       ctx.fillText('?', e.x + e.w / 2, e.y - 14);
       ctx.restore();
     }
-    // Shield grunt: draw shield on front face
-    if (e.type === 'shield-grunt' && !e.slipping) {
-      const sx = e.facing > 0 ? e.x + e.w - 1 : e.x - 9;
-      ctx.fillStyle = '#3366cc';
-      ctx.strokeStyle = '#88aaff';
+    // Shield grunt: draw shield (cracked state based on shieldHp)
+    if (e.type === 'shield-grunt' && !e.slipping && !e.shieldBroken) {
+      const sx     = e.facing > 0 ? e.x + e.w - 1 : e.x - 9;
+      const cracks = 3 - (e.shieldHp || 3);
+      ctx.fillStyle   = cracks === 0 ? '#3366cc' : cracks === 1 ? '#2255aa' : '#114488';
+      ctx.strokeStyle = cracks === 0 ? '#88aaff' : cracks === 1 ? '#ff8c35' : '#ff4422';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(sx + 4, e.y + 4);
@@ -342,6 +343,15 @@ function draw(dt) {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+      if (cracks > 0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,80,0,0.75)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sx + 5, e.y + 8);  ctx.lineTo(sx + 8, e.y + 18); ctx.stroke();
+        if (cracks > 1) {
+          ctx.beginPath(); ctx.moveTo(sx + 7, e.y + 14); ctx.lineTo(sx + 4, e.y + 24); ctx.stroke();
+        }
+        ctx.restore();
+      }
       ctx.lineWidth = 1;
     }
     if (e.slipping) {

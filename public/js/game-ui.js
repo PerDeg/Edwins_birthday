@@ -61,10 +61,6 @@ const UI = (() => {
       ctx.fillText('Inga poäng ännu — bli den första!', C.W/2, 220);
     }
 
-    // Survival button
-    const survHov = mouse && inBtn(mouse, C.W/2, C.H - 80, 220, 46);
-    button(ctx, '\u{1F30A} SURVIVAL', C.W/2, C.H - 80, 220, 46, survHov);
-
     // Controls hint
     ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(200,168,60,0.38)';
     ctx.textAlign = 'center';

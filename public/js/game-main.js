@@ -205,9 +205,6 @@ function handleClick() {
       if (hit(cx, cy, cardW, cardH) && upgradeChoices[i]) selectUpgrade(upgradeChoices[i].id);
     });
   }
-  if (gameState === STATE.MENU && hit(C.W/2, C.H - 80, 220, 46)) {
-    initSurvival();
-  }
   if (gameState === STATE.SURVIVAL_OVER && hit(C.W/2, C.H/2 + 70, 230, 50)) {
     startSurvivalSubmit();
   }
@@ -289,7 +286,8 @@ function initSurvival() {
   _hideMenu();
   _resetSubmitFlags();
   _setTouchControls(true);
-  Audio.start();
+  Audio.stop();
+  setTimeout(() => Audio.start(), 320);
   HUD.reset();
 
   player = new Player();
@@ -395,7 +393,8 @@ _nameInput?.addEventListener('keydown', e => {
 document.getElementById('btn-play-again')?.addEventListener('click', () => {
   _hideOverlay();
   _resetSubmitFlags();
-  initGame();
+  if (survivalMode) initSurvival();
+  else initGame();
 });
 
 document.getElementById('btn-quit')?.addEventListener('click', () => {
@@ -406,15 +405,17 @@ document.getElementById('btn-quit')?.addEventListener('click', () => {
 
 // ── Menu overlay start button ─────────────────────────────────────────────────
 document.getElementById('btn-start-game')?.addEventListener('click', () => {
-  _hideMenu();
-  _resetSubmitFlags();
-  initGame();
+  _hideMenu(); _resetSubmitFlags(); initGame();
 });
 document.getElementById('btn-start-game')?.addEventListener('touchend', e => {
-  e.preventDefault();
-  _hideMenu();
-  _resetSubmitFlags();
-  initGame();
+  e.preventDefault(); _hideMenu(); _resetSubmitFlags(); initGame();
+}, { passive: false });
+
+document.getElementById('btn-start-survival')?.addEventListener('click', () => {
+  initSurvival();
+});
+document.getElementById('btn-start-survival')?.addEventListener('touchend', e => {
+  e.preventDefault(); initSurvival();
 }, { passive: false });
 
 // ── Startup ───────────────────────────────────────────────────────────────────
