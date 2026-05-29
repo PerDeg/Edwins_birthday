@@ -303,8 +303,19 @@ function draw(dt) {
     p.draw(ctx);
   }
 
+  // Draw P2 (co-op)
+  if (player2 && player2.alive) {
+    if (player2.invincible > 0 && Math.floor(player2.invincible * 10) % 2 === 0) { /* blink */ }
+    else drawNinjaPlayer(ctx, player2);
+    // P2 HP bar
+    const p2bx = player2.x - 4, p2by = player2.y - 10, p2bw = player2.w + 8;
+    ctx.fillStyle = '#112255'; ctx.fillRect(p2bx, p2by, p2bw, 4);
+    ctx.fillStyle = '#4499ff'; ctx.fillRect(p2bx, p2by, p2bw * Math.max(0, p2Hp / C.PLAYER_HP), 4);
+  }
+
   for (const e of enemies) {
     if (e.x + e.w < cam.x - 20 || e.x > cam.x + C.W + 20) continue;
+    if (waveEvent === 'ghost' && !e.dying) ctx.globalAlpha = 0.15;
     if (e.dying) {
       const alpha = Math.max(0, e.dyingTimer / 0.55);
       ctx.save();
@@ -364,6 +375,7 @@ function draw(dt) {
     } else {
       e.type === 'archer' ? drawArcher(ctx, e) : drawGrunt(ctx, e);
     }
+    ctx.globalAlpha = 1;
     drawEnemyHpBar(ctx, e);
     if (e.hitFlash > 0) {
       ctx.save();
@@ -640,6 +652,44 @@ function draw(dt) {
     UI.drawLeaderboard(ctx, leaderboard, submitRank, mouse);
   } else if (gameState === STATE.VICTORY) {
     UI.drawVictory(ctx, dt, score, kills, mouse);
+  }
+
+  // ── BLACKOUT event: dark vignette with spotlight on player ──────────────────
+  if (waveEvent === 'blackout' && player) {
+    const pcx = player.x + player.w/2 - cam.x + cam.shake;
+    const pcy = player.y + player.h/2 + cam.shake * 0.4;
+    const g = ctx.createRadialGradient(pcx, pcy, 55, pcx, pcy, 340);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.55, 'rgba(0,0,10,0.82)');
+    g.addColorStop(1, 'rgba(0,0,10,0.97)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);
+  }
+
+  // ── Mouse aim crosshair (desktop only) ──────────────────────────────────────
+  if (!_isTouchDevice && (gameState === STATE.PLAYING || gameState === STATE.SURVIVAL) && player && !player.hiding) {
+    const mx = mouse.x, my = mouse.y, r = 10;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(mx - r, my); ctx.lineTo(mx + r, my); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mx, my - r); ctx.lineTo(mx, my + r); ctx.stroke();
+    ctx.beginPath(); ctx.arc(mx, my, r * 0.38, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Virtual joystick (touch devices) ────────────────────────────────────────
+  if (_isTouchDevice && _joy.id !== -1 && (gameState === STATE.PLAYING || gameState === STATE.SURVIVAL)) {
+    const bx = _joy.baseX, by = _joy.baseY;
+    const clamp = v => Math.max(-JOY_MAX, Math.min(JOY_MAX, v));
+    const kx = bx + clamp(_joy.dx), ky = by + clamp(_joy.dy);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, JOY_MAX, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(kx, ky, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   UI.drawHitFlash(ctx, screenFlash);

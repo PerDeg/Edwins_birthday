@@ -51,6 +51,18 @@ const HUD = (() => {
     ctx.fillStyle = '#e63946';
     ctx.fillText('♥', bx - 2, by + bh);
 
+    // ── Wave event banner ──
+    if (typeof waveEvent !== 'undefined' && waveEvent && typeof waveEventTimer !== 'undefined') {
+      const EVT_COL = { blackout: '#88aaff', kaos: '#ff6644', goldrain: '#ffd700', ghost: '#aaffaa' };
+      const EVT_LBL = { blackout: '🌑 MÖRKRET', kaos: '💢 KAOS', goldrain: '🪙 GULDREGN', ghost: '👻 SPÖKRUNDA' };
+      ctx.save();
+      ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
+      ctx.globalAlpha = 0.75 + Math.sin(Date.now() * 0.008) * 0.25;
+      ctx.fillStyle = EVT_COL[waveEvent] || '#fff';
+      ctx.fillText(`${EVT_LBL[waveEvent] || waveEvent}  ${Math.ceil(waveEventTimer)}s`, C.W / 2, 44);
+      ctx.globalAlpha = 1; ctx.restore();
+    }
+
     // ── Survival wave counter ──
     if (survivalMode && survivalWave > 0) {
       ctx.save();

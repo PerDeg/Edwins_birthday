@@ -295,7 +295,12 @@ function updatePlayer(dt) {
   p.crouching  = !!(crouch && p.onGround && !p.onLadder);
   const spd    = p.crouching ? C.CROUCH_SPEED : C.PLAYER_SPEED;
   p.vx = right ? spd : left ? -spd : 0;
-  if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
+  if (p.vx !== 0) {
+    p.facing = p.vx > 0 ? 1 : -1;
+  } else if (!_isTouchDevice && !p.hiding) {
+    // Mouse aim: face cursor when not moving
+    p.facing = (mouse.x + cam.x) > (p.x + p.w / 2) ? 1 : -1;
+  }
 
   if (jumpPressed && !p.hooked) {
     const allowJump = !p.onLadder || jumpPressed;
@@ -498,6 +503,13 @@ function damagePlayer() {
 function throwWeapon() {
   const cx = player.x + player.w / 2 + player.facing * 18;
   const cy = player.y + player.h * 0.3;
+  // On desktop, aim toward mouse cursor in world space
+  let aimAngle = null;
+  if (!_isTouchDevice) {
+    const mx = mouse.x + cam.x, my = mouse.y;
+    aimAngle = Math.atan2(my - cy, mx - cx);
+    player.facing = mx > (player.x + player.w / 2) ? 1 : -1;
+  }
   if (playerWeapon === 'smoke') {
     smokeBombs.push(new SmokeBomb(player.x + player.facing * 90, player.y + player.h * 0.5));
     throwAmmo--;
@@ -508,12 +520,14 @@ function throwWeapon() {
   }
   if (playerWeapon === 'triple') {
     [-0.18, 0, 0.18].forEach(a => {
-      const ps = new PlayerShuriken(cx, cy, player.facing, 'shuriken', a);
+      const wAngle = aimAngle !== null ? aimAngle + a : null;
+      const ps = new PlayerShuriken(cx, cy, player.facing, 'shuriken', a, wAngle);
       if (playerUpgrades.pierce_all) ps.piercing = true;
       playerShurikens.push(ps);
     });
   } else {
-    const ps = new PlayerShuriken(cx, cy, player.facing, playerWeapon === 'knife' ? 'knife' : 'shuriken');
+    const ps = new PlayerShuriken(cx, cy, player.facing,
+      playerWeapon === 'knife' ? 'knife' : 'shuriken', 0, aimAngle);
     if (playerUpgrades.pierce_all) ps.piercing = true;
     playerShurikens.push(ps);
   }
@@ -1055,6 +1069,18 @@ function spawnWave(wave) {
   wavePhase = 'fighting';
   floatingTexts.push(new FloatingText(C.W/2, C.GROUND_Y - 220,
     `VÅNING ${wave}!`, '#ffe040', 2.2));
+
+  // Random wave event (from wave 2 onward, 65% chance)
+  waveEvent = '';
+  if (wave >= 2 && Math.random() < 0.65) {
+    const EVT = ['blackout', 'kaos', 'goldrain', 'ghost'];
+    const EVT_NAMES = { blackout: 'MÖRKRET FALLER!', kaos: 'KAOS!', goldrain: 'GULDREGN!', ghost: 'SPÖKRUNDA!' };
+    const EVT_COLS  = { blackout: '#88aaff', kaos: '#ff4444', goldrain: '#ffd700', ghost: '#aaffaa' };
+    waveEvent = EVT[Math.floor(Math.random() * EVT.length)];
+    waveEventTimer = 18;
+    floatingTexts.push(new FloatingText(C.W/2, C.GROUND_Y - 260,
+      EVT_NAMES[waveEvent], EVT_COLS[waveEvent], 1.8));
+  }
 }
 
 function _doSpawn(bp) {
@@ -1081,6 +1107,18 @@ const _SPAWN_INTERVAL   = 1.8;   // seconds between each new enemy
 const _MAX_CONCURRENT   = 5;     // max alive enemies on screen at once
 
 function updateSurvival(dt) {
+  // Wave event tick
+  if (waveEvent && waveEventTimer > 0) {
+    waveEventTimer -= dt;
+    if (waveEvent === 'goldrain' && Math.random() < 1.8 * dt) {
+      const c = new Coin(Math.random() * C.W, -10);
+      c.vy = 90 + Math.random() * 80;
+      c.vx = (Math.random() - 0.5) * 40;
+      coins.push(c);
+    }
+    if (waveEventTimer <= 0) waveEvent = '';
+  }
+
   // Drip-feed enemies from queue
   if (survivalSpawnQueue.length > 0) {
     survivalSpawnTimer -= dt;
@@ -1105,6 +1143,85 @@ function updateSurvival(dt) {
       spawnWave(survivalWave + 1);
       waveCountdown = 4;
     }
+  }
+}
+
+// ── Player 2 (co-op survival) ─────────────────────────────────────────────────
+function updatePlayer2(dt) {
+  if (!player2 || !player2.alive) return;
+  const p = player2;
+  // P2 keys: Arrow keys + NumpadEnter(jump) + Numpad0(attack) + Delete(throw)
+  const left2  = keys['ArrowLeft'];
+  const right2 = keys['ArrowRight'];
+  const jump2  = keyJustPressed('ArrowUp') || keyJustPressed('Numpad5') || keyJustPressed('NumpadEnter');
+  const atk2   = keyJustPressed('Numpad0') || keyJustPressed('ControlRight');
+  const throw2 = keyJustPressed('Delete')  || keyJustPressed('NumpadDecimal');
+
+  const spd2 = C.PLAYER_SPEED;
+  p.vx = right2 ? spd2 : left2 ? -spd2 : 0;
+  if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
+
+  // Jump
+  if (jump2 && p.jumpsLeft > 0) {
+    const wasDouble = p.jumpsLeft === 1;
+    p.vy = C.JUMP_V; p.jumpsLeft--;
+    if (wasDouble) { emitDoubleJump(particles, p.x + p.w/2, p.y + p.h); Audio.djump(); }
+    else Audio.jump();
+  }
+  // Melee attack
+  if (atk2 && p.attackCooldown <= 0) {
+    p.attacking = true; p.attackTimer = C.ATTACK_DURATION; p.attackCooldown = 0.35;
+    emitSwordSlash(particles, p.x + (p.facing > 0 ? p.w + 10 : -10), p.y + p.h * 0.35, p.facing);
+    Audio.slash();
+  }
+  // Throw (shuriken only)
+  if (throw2 && p2ThrowAmmo > 0 && p2ThrowCooldown <= 0) {
+    playerShurikens.push(new PlayerShuriken(p.x + p.w/2 + p.facing*18, p.y + p.h*0.3, p.facing, 'shuriken'));
+    p2ThrowAmmo--; p2ThrowCooldown = C.THROW_COOLDOWN;
+    Audio.slash();
+  }
+
+  if (p.attackTimer > 0)    { p.attackTimer -= dt; if (p.attackTimer <= 0) p.attacking = false; }
+  if (p.attackCooldown > 0)   p.attackCooldown -= dt;
+  if (p.invincible > 0)       p.invincible     -= dt;
+  if (p2ThrowCooldown > 0)    p2ThrowCooldown  -= dt;
+
+  // Physics
+  p.onGround = false;
+  p.vy += C.GRAVITY * dt;
+  p.x  += p.vx * dt;
+  p.y  += p.vy * dt;
+  if (p.x < 0) p.x = 0;
+  if (p.x + p.w > C.W) p.x = C.W - p.w;
+  platformCollision(p);
+  if (p.y > C.H + 100) { p2Hp = 0; }
+
+  // State
+  const prevSt = p.prevState;
+  p.state = p.attacking ? 'attack' : p.onGround ? (Math.abs(p.vx) > 5 ? 'run' : 'idle') : 'jump';
+  if (p.state !== prevSt) { p.animFrame = 0; p.animTimer = 0; p.prevState = p.state; }
+  p.animTimer += dt;
+  if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
+
+  // Enemy collision
+  for (const e of enemies) {
+    if (!e.alive || e.dying) continue;
+    if (p.invincible <= 0 && rectsOverlap(p.bounds(), e.bounds())) {
+      p2Hp = Math.max(0, p2Hp - C.CONTACT_DAMAGE);
+      p.invincible = C.INVINCIBLE_TIME;
+      emitHit(particles, p.x + p.w/2, p.y + p.h/2);
+      Audio.hit();
+    }
+    if (p.attackActive && rectsOverlap(p.attackHitbox(), e.bounds())) {
+      e.hp--;
+      e.hitFlash = 0.12;
+      if (e.hp <= 0) killEnemy(e);
+      else if (e instanceof Grunt) { e.aiState = 'alert'; e.detectTimer = C.DETECTION_TIME; }
+    }
+  }
+  if (p2Hp <= 0 && p.alive) {
+    p.alive = false;
+    floatingTexts.push(new FloatingText(p.x + p.w/2, p.y - 40, 'P2 NERE!', '#ff4444', 2.0));
   }
 }
 
@@ -1164,7 +1281,7 @@ function update(dt) {
   updateSpikes();
   updateSmokeBombs(dt);
   if (!survivalMode) updateCheckpoints();
-  else updateSurvival(dt);
+  else { updateSurvival(dt); if (coopMode) updatePlayer2(dt); }
   updateCamera(dt);
   updateCombo(dt);
   updateGem(dt);

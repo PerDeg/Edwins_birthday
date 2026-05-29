@@ -48,17 +48,62 @@ function keyJustPressed(code) { return !!(keys[code] && !prevKeys[code]); }
   el.addEventListener('touchend',   e => { e.preventDefault(); keys[map[id]] = false; }, { passive:false });
 });
 
-const mouse = { x: 0, y: 0 };
+const _isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+const mouse = { x: C.W / 2, y: C.H / 2 };
+
 canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / scale;
   mouse.y = (e.clientY - r.top)  / scale;
 });
+
+// ── Virtual joystick state ─────────────────────────────────────────────────────
+const _joy = { id: -1, baseX: 0, baseY: 0, dx: 0, dy: 0 };
+const joyKeys = { ArrowLeft: false, ArrowRight: false, ArrowDown: false };
+const JOY_DEAD = 22, JOY_MAX = 60;
+
+canvas.addEventListener('touchstart', e => {
+  const r = canvas.getBoundingClientRect();
+  for (const t of e.changedTouches) {
+    const cx = (t.clientX - r.left) / scale;
+    const cy = (t.clientY - r.top)  / scale;
+    if (cx < C.W * 0.44 && _joy.id === -1 &&
+        (gameState === STATE.PLAYING || gameState === STATE.SURVIVAL)) {
+      _joy.id = t.identifier;
+      _joy.baseX = cx; _joy.baseY = cy; _joy.dx = 0; _joy.dy = 0;
+      e.preventDefault();
+      return;
+    }
+  }
+}, { passive: false });
+
 canvas.addEventListener('touchmove', e => {
-  const t = e.touches[0], r = canvas.getBoundingClientRect();
-  mouse.x = (t.clientX - r.left) / scale;
-  mouse.y = (t.clientY - r.top)  / scale;
-}, { passive: true });
+  const r = canvas.getBoundingClientRect();
+  for (const t of e.changedTouches) {
+    if (t.identifier === _joy.id) {
+      _joy.dx = (t.clientX - r.left) / scale - _joy.baseX;
+      _joy.dy = (t.clientY - r.top)  / scale - _joy.baseY;
+      e.preventDefault();
+    } else {
+      mouse.x = (t.clientX - r.left) / scale;
+      mouse.y = (t.clientY - r.top)  / scale;
+    }
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  const r = canvas.getBoundingClientRect();
+  for (const t of e.changedTouches) {
+    if (t.identifier === _joy.id) {
+      _joy.id = -1; _joy.dx = 0; _joy.dy = 0;
+      keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowDown'] = false;
+    } else {
+      mouse.x = (t.clientX - r.left) / scale;
+      mouse.y = (t.clientY - r.top)  / scale;
+      handleClick();
+    }
+  }
+});
 
 // ── Game state ─────────────────────────────────────────────────────────────────
 const STATE = {
@@ -128,6 +173,16 @@ let waveCountdown       = 3;
 let survivalSpawnQueue  = [];          // pending enemy blueprints
 let survivalSpawnTimer  = 0;           // seconds until next spawn from queue
 let survivalLeaderboard = [];
+let waveEvent           = '';          // '' | 'blackout' | 'kaos' | 'goldrain' | 'ghost'
+let waveEventTimer      = 0;
+// ── Co-op ─────────────────────────────────────────────────────────────────────
+let coopMode    = false;
+let player2     = null;
+let p2Shurikens = [];
+let p2Hp        = C.PLAYER_HP;
+let p2Weapon    = 'sword';
+let p2ThrowAmmo = 0;
+let p2ThrowCooldown = 0;
 
 // ── Ground pound wave ─────────────────────────────────────────────────────────
 let groundPoundWave = null;
@@ -317,6 +372,21 @@ function initSurvival() {
   waveCountdown      = 2;
   survivalSpawnQueue = [];
   survivalSpawnTimer = 0;
+  waveEvent          = '';
+  waveEventTimer     = 0;
+  p2Shurikens        = [];
+  p2Hp               = C.PLAYER_HP;
+  p2Weapon           = 'sword';
+  p2ThrowAmmo        = 0;
+  p2ThrowCooldown    = 0;
+
+  if (coopMode) {
+    player2 = new Player();
+    player2.x = 400; player2.y = 300;
+    player2.headbandColor = '#4499ff';  // blue headband for P2
+  } else {
+    player2 = null;
+  }
   level         = 0;
   levelWidth    = C.W;
   bgTheme       = 0;
@@ -338,6 +408,13 @@ function loop(now) {
   lastTime = now;
   if (slowMoTimer > 0) slowMoTimer = Math.max(0, slowMoTimer - rawDt);
   const dt = rawDt * (slowMoTimer > 0 ? C.SLOW_MO_FACTOR : 1);
+
+  // Joystick → inject into keys[] so all existing keyJustPressed / held checks work
+  if (_joy.id !== -1) {
+    keys['ArrowLeft']  = _joy.dx < -JOY_DEAD;
+    keys['ArrowRight'] = _joy.dx >  JOY_DEAD;
+    keys['ArrowDown']  = _joy.dy >  JOY_DEAD;
+  }
 
   const _t0 = performance.now();
   update(dt);
@@ -371,14 +448,7 @@ canvas.addEventListener('click', e => {
   mouse.y = (e.clientY - r.top)  / scale;
   handleClick();
 });
-canvas.addEventListener('touchend', e => {
-  const t = e.changedTouches[0];
-  if (!t) return;
-  const r = canvas.getBoundingClientRect();
-  mouse.x = (t.clientX - r.left) / scale;
-  mouse.y = (t.clientY - r.top)  / scale;
-  handleClick();
-});
+// (canvas touchend now handled by the joystick listener above)
 
 // ── HTML overlay buttons ──────────────────────────────────────────────────────
 document.getElementById('btn-save-score')?.addEventListener('click', () => {
@@ -416,10 +486,17 @@ document.getElementById('btn-start-game')?.addEventListener('touchend', e => {
 }, { passive: false });
 
 document.getElementById('btn-start-survival')?.addEventListener('click', () => {
-  initSurvival();
+  coopMode = false; initSurvival();
 });
 document.getElementById('btn-start-survival')?.addEventListener('touchend', e => {
-  e.preventDefault(); initSurvival();
+  e.preventDefault(); coopMode = false; initSurvival();
+}, { passive: false });
+
+document.getElementById('btn-start-coop')?.addEventListener('click', () => {
+  coopMode = true; initSurvival();
+});
+document.getElementById('btn-start-coop')?.addEventListener('touchend', e => {
+  e.preventDefault(); coopMode = true; initSurvival();
 }, { passive: false });
 
 // ── Startup ───────────────────────────────────────────────────────────────────

@@ -103,11 +103,12 @@ function drawNinjaPlayer(ctx, p) {
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.fillRect(w * 0.04, headY + h * 0.05, w * 0.28, 3);
 
-  // Headband
-  ctx.fillStyle = C.COL_BAND;
+  // Headband (colour customisable for P2)
+  const _band = p.headbandColor || C.COL_BAND;
+  ctx.fillStyle = _band;
   ctx.fillRect(-w * 0.42, headY - h * 0.01, w * 0.84, 5);
   // Band tail
-  ctx.fillStyle = C.COL_BAND;
+  ctx.fillStyle = _band;
   ctx.beginPath();
   ctx.moveTo(w * 0.34, headY + 4);
   ctx.lineTo(w * 0.50 + Math.sin(animFrame * 8) * 3, headY + h * 0.18);
@@ -393,8 +394,9 @@ class Grunt {
     }
 
     if (this.aiState === 'alert' && player) {
-      const dir = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
-      this.vx = dir * this.baseSpd * C.ALERT_SPEED_MUL;
+      const dir    = (player.x + player.w / 2) > (this.x + this.w / 2) ? 1 : -1;
+      const kaosMul = (typeof waveEvent !== 'undefined' && waveEvent === 'kaos') ? 1.9 : 1;
+      this.vx = dir * this.baseSpd * C.ALERT_SPEED_MUL * kaosMul;
       this.facing = dir;
       this.onGround = false;
       this.vy += C.GRAVITY * dt;
@@ -848,15 +850,20 @@ class WeaponPickup {
 
 // ── PlayerShuriken (handles shuriken / triple / knife) ────────────────────────
 class PlayerShuriken {
-  constructor(x, y, facing, type, angleOffset = 0) {
+  constructor(x, y, facing, type, angleOffset = 0, worldAngle = null) {
     this.type     = type;   // 'shuriken' | 'knife'
     this.piercing = (type === 'knife');
     const speed   = type === 'knife' ? C.KNIFE_SPEED : C.SHURIKEN_SPEED;
     this.x = x; this.y = y;
     this.startX = x;
-    this.vx = facing * speed * Math.cos(angleOffset);
-    this.vy = speed  * Math.sin(angleOffset);
-    // Kunai.png points UP (north = 0). Offset so tip faces travel direction, then tumbles.
+    if (worldAngle !== null) {
+      this.vx = Math.cos(worldAngle) * speed;
+      this.vy = Math.sin(worldAngle) * speed;
+      facing = Math.cos(worldAngle) >= 0 ? 1 : -1;
+    } else {
+      this.vx = facing * speed * Math.cos(angleOffset);
+      this.vy = speed  * Math.sin(angleOffset);
+    }
     this.rot     = this.type === 'knife' ? (facing > 0 ? Math.PI / 2 : -Math.PI / 2) : 0;
     this.facing  = facing;
     this.w       = type === 'knife' ? 22 : 12;

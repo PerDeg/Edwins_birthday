@@ -60,9 +60,9 @@ html {
 /* Base sizes (phones ~375px wide)
    Left cluster: ◀  ▶ with ▼ centered below them
    Right cluster: ⬆ (big), ⚔ to its left, ✦ above ⚔ */
-#btn-left  { width: 88px; height: 88px; bottom: 108px; left: 10px; }
-#btn-right { width: 88px; height: 88px; bottom: 108px; left: 110px; }
-#btn-down  { width: 76px; height: 76px; bottom: 24px;  left: 71px;  background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.25); }
+#btn-left  { display: none; }
+#btn-right { display: none; }
+#btn-down  { width: 76px; height: 76px; bottom: 24px; right: 218px; background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.25); }
 #btn-jump  { width: 96px; height: 96px; bottom: 100px; right: 10px; background: rgba(200,168,60,0.25); border-color: rgba(200,168,60,0.60); }
 #btn-attack{ width: 82px; height: 82px; bottom: 110px; right: 118px; background: rgba(230,57,70,0.25);  border-color: rgba(230,57,70,0.55); }
 #btn-throw { width: 72px; height: 72px; bottom: 196px; right: 122px; background: rgba(79,195,247,0.25); border-color: rgba(79,195,247,0.55); }
@@ -70,9 +70,7 @@ html {
 /* Larger screens (tablets / landscape phones) */
 @media (min-width: 600px) and (pointer: coarse) {
   #touch-controls { height: 230px; }
-  #btn-left  { width: 100px; height: 100px; bottom: 116px; left: 16px; }
-  #btn-right { width: 100px; height: 100px; bottom: 116px; left: 128px; }
-  #btn-down  { width:  86px; height:  86px; bottom:  22px; left: 85px; }
+  #btn-down  { width: 86px; height: 86px; bottom: 22px; right: 250px; }
   #btn-jump  { width: 110px; height: 110px; bottom: 108px; right: 16px; }
   #btn-attack{ width:  94px; height:  94px; bottom: 120px; right: 138px; }
   #btn-throw { width:  82px; height:  82px; bottom: 218px; right: 142px; }
@@ -252,6 +250,18 @@ html {
 #btn-start-survival:hover, #btn-start-survival:active {
   background: rgba(70,130,200,0.28);
   box-shadow: 0 0 30px rgba(70,130,200,0.30);
+}
+
+#btn-start-coop {
+  background: rgba(80,200,100,0.13);
+  border: 2px solid #44cc66;
+  color: #66dd88;
+  text-shadow: 0 0 12px rgba(80,200,100,0.45);
+  box-shadow: 0 0 18px rgba(80,200,100,0.14);
+}
+#btn-start-coop:hover, #btn-start-coop:active {
+  background: rgba(80,200,100,0.26);
+  box-shadow: 0 0 30px rgba(80,200,100,0.28);
 }
 
 /* Back link */
