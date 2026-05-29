@@ -214,9 +214,10 @@ html {
 }
 
 #btn-start-game,
-#btn-start-survival {
-  width: clamp(220px, 55vw, 340px);
-  padding: 0.95rem 2rem;
+#btn-start-survival,
+#btn-start-coop {
+  width: clamp(240px, 60vw, 360px);
+  padding: 1.05rem 2rem;
   border-radius: 8px;
   font-family: system-ui, sans-serif;
   font-size: clamp(0.9rem, 2.2vw, 1.1rem);

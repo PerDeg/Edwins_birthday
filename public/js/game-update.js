@@ -87,13 +87,21 @@ function _getWallContact(p) {
 // ── Grapple target finder ─────────────────────────────────────────────────────
 function _findHookTarget(p) {
   const pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
-  let best = null, bestDist = C.HOOK_RANGE * (playerUpgrades.grapple_long ? 1.6 : 1);
+  const range = C.HOOK_RANGE * (playerUpgrades.grapple_long ? 1.6 : 1);
+  // On desktop, grapple aims toward mouse cursor; on touch, aim straight up
+  const mx = !_isTouchDevice ? mouse.x + cam.x : pcx;
+  const my = !_isTouchDevice ? mouse.y           : pcy - 150;
+  let best = null, bestMouseDist = Infinity;
   for (const pl of platforms) {
-    const ax  = Math.max(pl.x + 8, Math.min(pl.x + pl.w - 8, pcx));
-    const ay  = pl.y;
-    if (ay >= pcy - 20) continue;   // must be above player centre
-    const d = Math.hypot(ax - pcx, ay - pcy);
-    if (d < bestDist) { best = { x: ax, y: ay, len: d }; bestDist = d; }
+    const ax = Math.max(pl.x + 8, Math.min(pl.x + pl.w - 8, pcx));
+    const ay = pl.y;
+    if (ay >= pcy - 10) continue;                      // must be above player
+    if (Math.hypot(ax - pcx, ay - pcy) > range) continue;
+    const md = Math.hypot(ax - mx, ay - my);           // proximity to mouse
+    if (md < bestMouseDist) {
+      best = { x: ax, y: ay, len: Math.hypot(ax - pcx, ay - pcy) };
+      bestMouseDist = md;
+    }
   }
   return best;
 }
@@ -230,51 +238,49 @@ function updatePlayer(dt) {
     if (p.invincible > 0)     p.invincible     -= dt;
     if (throwCooldown > 0)    throwCooldown    -= dt;
 
-    // Space releases the grapple (carries swing momentum, restores one jump)
-    if (keyJustPressed('Space')) {
+    // Any jump key releases the grapple with swing momentum
+    if (jumpPressed) {
       p.hooked = null;
       p.jumpsLeft = Math.max(p.jumpsLeft, 1);
-      p.facing = p.vx > 5 ? 1 : p.vx < -5 ? -1 : p.facing;
-      p.state = 'jump'; p.prevState = 'jump';
-      p.animTimer += dt; if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
-      return;
+    } else {
+      // Attack during swing
+      if (attackPressed && p.attackCooldown <= 0) {
+        p.attacking = true; p.attackTimer = C.ATTACK_DURATION; p.attackCooldown = 0.35;
+        emitSwordSlash(particles, p.x + (p.facing > 0 ? p.w + 10 : -10), p.y + p.h * 0.35, p.facing);
+        Audio.slash();
+      }
+      if (p.attackTimer > 0) { p.attackTimer -= dt; if (p.attackTimer <= 0) p.attacking = false; }
+
+      const anchor = p.hooked;
+      // Left/right boosts the swing; gravity pulls down
+      p.vy += C.GRAVITY * dt;
+      if (left)  p.vx -= 280 * dt;
+      if (right) p.vx += 280 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Rope length constraint
+      const dx   = (p.x + p.w / 2) - anchor.x;
+      const dy   = (p.y + p.h / 2) - anchor.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > anchor.len && dist > 1) {
+        const nx = dx / dist, ny = dy / dist;
+        const dot = p.vx * nx + p.vy * ny;
+        if (dot > 0) { p.vx -= dot * nx; p.vy -= dot * ny; }
+        p.x = anchor.x + nx * anchor.len - p.w / 2;
+        p.y = anchor.y + ny * anchor.len - p.h / 2;
+      }
+
+      if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
+      platformCollision(p);
+      if (p.onGround) { p.hooked = null; p.jumpsLeft = 2; }
+      else if (p.y + p.h >= C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
     }
 
-    const anchor = p.hooked;
-
-    // Up/W climbs the rope (shortens length toward anchor)
-    const upHeld = keys['ArrowUp'] || keys['KeyW'];
-    if (upHeld && anchor.len > 32) anchor.len = Math.max(32, anchor.len - C.HOOK_CLIMB_SPEED * dt);
-
-    // Apply gravity; left/right boosts the swing
-    p.vy += C.GRAVITY * dt;
-    if (left)  p.vx -= 280 * dt;
-    if (right) p.vx += 280 * dt;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-
-    // Constraint: keep player at rope length from anchor
-    const dx   = (p.x + p.w / 2) - anchor.x;
-    const dy   = (p.y + p.h / 2) - anchor.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > anchor.len && dist > 1) {
-      const nx = dx / dist, ny = dy / dist;
-      const dot = p.vx * nx + p.vy * ny;
-      if (dot > 0) { p.vx -= dot * nx; p.vy -= dot * ny; }
-      p.x = anchor.x + nx * anchor.len - p.w / 2;
-      p.y = anchor.y + ny * anchor.len - p.h / 2;
-    }
-
-    // Left camera boundary
-    if (p.x < cam.x) { p.x = cam.x; if (p.vx < 0) p.vx = 0; }
-
-    // Auto-release when landing on a platform or the ground
-    platformCollision(p);
-    if (p.onGround) { p.hooked = null; p.jumpsLeft = 2; }
-    else if (p.y + p.h >= C.H + 100) { playerHp = 0; gameState = STATE.GAMEOVER; Audio.stop(); }
-
-    p.facing = p.vx > 5 ? 1 : p.vx < -5 ? -1 : p.facing;
-    p.state  = 'jump'; p.prevState = 'jump';
+    // Mouse aims facing even during swing
+    if (!_isTouchDevice) p.facing = (mouse.x + cam.x) > (p.x + p.w / 2) ? 1 : -1;
+    else p.facing = p.vx > 5 ? 1 : p.vx < -5 ? -1 : p.facing;
+    p.state = p.attacking ? 'attack' : 'jump'; p.prevState = p.state;
     p.animTimer += dt; if (p.animTimer > 0.10) { p.animFrame++; p.animTimer = 0; }
     return;
   }
@@ -293,13 +299,15 @@ function updatePlayer(dt) {
 
   const crouch = keys['ArrowDown']  || keys['KeyS'];
   p.crouching  = !!(crouch && p.onGround && !p.onLadder);
-  const spd    = p.crouching ? C.CROUCH_SPEED : C.PLAYER_SPEED;
-  p.vx = right ? spd : left ? -spd : 0;
-  if (p.vx !== 0) {
-    p.facing = p.vx > 0 ? 1 : -1;
-  } else if (!_isTouchDevice && !p.hiding) {
-    // Mouse aim: face cursor when not moving
+  const spd = p.crouching ? C.CROUCH_SPEED : C.PLAYER_SPEED;
+  if (!_isTouchDevice && !p.hiding && !p.onLadder) {
+    // Desktop: mouse always controls facing; any movement key walks toward cursor
     p.facing = (mouse.x + cam.x) > (p.x + p.w / 2) ? 1 : -1;
+    p.vx = (left || right) ? p.facing * spd : 0;
+  } else {
+    // Touch / keyboard-only: traditional left/right
+    p.vx = right ? spd : left ? -spd : 0;
+    if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
   }
 
   if (jumpPressed && !p.hooked) {
